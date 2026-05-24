@@ -5,7 +5,7 @@ import { getClasses } from '../../services/classes.js'
 import { getSubjects } from '../../services/subjects.js'
 import { getGroups } from '../../services/groups.js'
 import { getGroupSubjectOptions } from '../../utils/groupSubjects.js'
-import { sortRegistrationsByClass } from '../../utils/registrationOrdering.js'
+import { sortRegistrationsByGroupSubject } from '../../utils/registrationOrdering.js'
 import {
   createRegistration,
   deleteRegistration,
@@ -75,13 +75,17 @@ function Registrations() {
     [selectedFilterGroup, subjects],
   )
   const sortedClasses = useMemo(() => sortClassesForDisplay(classes), [classes])
+  const orderedItems = useMemo(
+    () => sortRegistrationsByGroupSubject(items, groups, subjects),
+    [items, groups, subjects],
+  )
 
   const loadRegistrations = async (yearId, activeFilters) => {
     setStatus('loading')
     setError('')
     try {
       const list = await getRegistrations(yearId, activeFilters)
-      setItems(sortRegistrationsByClass(list, classes))
+      setItems(list)
       setStatus('ready')
     } catch (err) {
       setError(err.message || 'রেজিস্ট্রেশন তালিকা আনা যায়নি।')
@@ -104,7 +108,7 @@ function Registrations() {
       setClasses(classList)
       setSubjects(subjectList)
       const list = await getRegistrations(yearId, filters)
-      setItems(sortRegistrationsByClass(list, classList))
+      setItems(list)
       setStatus('ready')
     } catch (err) {
       setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
@@ -352,93 +356,55 @@ function Registrations() {
         >
           ফিল্টার প্রয়োগ করুন
         </button>
-        {status === 'loading' ? (
-          <p className="text-sm text-muted">লোড হচ্ছে...</p>
-        ) : null}
-        {status === 'error' ? (
-          <p className="text-sm text-muted">{error}</p>
-        ) : null}
-        {status === 'ready' && items.length === 0 ? (
+        {status === 'loading' ? <p className="text-sm text-muted">লোড হচ্ছে...</p> : null}
+        {status === 'error' ? <p className="text-sm text-muted">{error}</p> : null}
+        {status === 'ready' && orderedItems.length === 0 ? (
           <p className="text-sm text-muted">এখনো কোনো রেজিস্ট্রেশন নেই।</p>
         ) : null}
-        {items.length > 0 ? (
-          <div className="grid gap-3 text-sm text-muted">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 border border-line px-4 py-3"
-              >
-                {editingId === item.id ? (
-                  <div className="grid w-full gap-3">
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      value={editingForm.studentName}
-                      onChange={(event) =>
-                        setEditingForm((prev) => ({
-                          ...prev,
-                          studentName: event.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      value={editingForm.rollNumber}
-                      onChange={(event) =>
-                        setEditingForm((prev) => ({
-                          ...prev,
-                          rollNumber: event.target.value,
-                        }))
-                      }
-                    />
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <label className="grid gap-2 text-xs text-muted">
-                        গ্রুপ
-                        <select
-                          className="h-10 border border-line bg-white px-3 text-ink"
-                          value={editingForm.groupId}
+        {orderedItems.length > 0 ? (
+          <div className="table-scroll">
+            <table className="w-full min-w-[1180px] border-collapse text-sm text-muted">
+              <thead>
+                <tr className="bg-[var(--surface-alt)] text-xs uppercase text-muted">
+                  <th className="border border-line px-3 py-2 text-center">ক্রমিক</th>
+                  <th className="border border-line px-3 py-2 text-center">গ্রুপ</th>
+                  <th className="border border-line px-3 py-2 text-center">বিষয়</th>
+                  <th className="border border-line px-3 py-2 text-center">প্রতিযোগির নাম</th>
+                  <th className="border border-line px-3 py-2 text-center">শ্রেণী</th>
+                  <th className="border border-line px-3 py-2 text-center">রোল</th>
+                  <th className="border border-line px-3 py-2 text-center">একশন</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedItems.map((item, index) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="border border-line px-3 py-2 text-center align-middle text-ink">{index + 1}</td>
+                    <td className="border border-line px-3 py-2 text-center align-middle text-ink">
+                      {item.groupName || groupMap[item.groupId] || 'নেই'}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-ink">
+                      {item.subjectName || subjectMap[item.subjectId] || 'নেই'}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-ink">
+                      {editingId === item.id ? (
+                        <input
+                          className="h-10 w-full border border-line bg-white px-3 text-ink"
+                          value={editingForm.studentName}
                           onChange={(event) =>
                             setEditingForm((prev) => ({
                               ...prev,
-                              groupId: event.target.value,
-                              subjectId: '',
+                              studentName: event.target.value,
                             }))
                           }
-                        >
-                          <option value="">নির্বাচন করুন</option>
-                          {groups.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-2 text-xs text-muted">
-                        বিষয়
+                        />
+                      ) : (
+                        <p>{item.studentName}</p>
+                      )}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-ink">
+                      {editingId === item.id ? (
                         <select
-                          className="h-10 border border-line bg-white px-3 text-ink"
-                          value={editingForm.subjectId}
-                          onChange={(event) =>
-                            setEditingForm((prev) => ({
-                              ...prev,
-                              subjectId: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">নির্বাচন করুন</option>
-                          {getGroupSubjectOptions(
-                            groups.find((item) => item.id === editingForm.groupId),
-                            subjects,
-                          ).map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-2 text-xs text-muted">
-                        শ্রেণি
-                        <select
-                          className="h-10 border border-line bg-white px-3 text-ink"
+                          className="h-10 w-full border border-line bg-white px-3 text-ink"
                           value={editingForm.classId}
                           onChange={(event) =>
                             setEditingForm((prev) => ({
@@ -448,70 +414,75 @@ function Registrations() {
                           }
                         >
                           <option value="">নির্বাচন করুন</option>
-                          {sortedClasses.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
+                          {sortedClasses.map((classItem) => (
+                            <option key={classItem.id} value={classItem.id}>
+                              {classItem.name}
                             </option>
                           ))}
                         </select>
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <button
-                        type="button"
-                        className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                        onClick={() => saveEdit(item.id)}
-                      >
-                        সংরক্ষণ
-                      </button>
-                      <button
-                        type="button"
-                        className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                        onClick={cancelEdit}
-                      >
-                        বাতিল
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-ink">
-                        #{item.serialNumber ?? '-'} {item.studentName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        রোল: {item.rollNumber}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        গ্রুপ: {item.groupName || groupMap[item.groupId] || 'নেই'}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        বিষয়: {item.subjectName || subjectMap[item.subjectId] || 'নেই'}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        শ্রেণি: {item.className || classMap[item.classId] || 'নেই'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <button
-                        type="button"
-                        className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                        onClick={() => startEdit(item)}
-                      >
-                        সম্পাদনা
-                      </button>
-                      <button
-                        type="button"
-                        className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        মুছুন
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                      ) : (
+                        <p>{item.className || classMap[item.classId] || 'নেই'}</p>
+                      )}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-center align-middle text-ink">
+                      {editingId === item.id ? (
+                        <input
+                          className="h-10 w-full border border-line bg-white px-3 text-ink"
+                          value={editingForm.rollNumber}
+                          onChange={(event) =>
+                            setEditingForm((prev) => ({
+                              ...prev,
+                              rollNumber: event.target.value,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <p>{item.rollNumber}</p>
+                      )}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-center align-middle">
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                        {editingId === item.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => saveEdit(item.id)}
+                            >
+                              সংরক্ষণ
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={cancelEdit}
+                            >
+                              বাতিল
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => startEdit(item)}
+                            >
+                              সম্পাদনা
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              মুছুন
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </SectionCard>

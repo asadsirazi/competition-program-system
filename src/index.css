@@ -37,12 +37,56 @@ a {
 }
 
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
   .print-hidden {
     display: none !important;
   }
 
   .print-area {
     box-shadow: none !important;
+    padding: 0.14in !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.14in !important;
+  }
+
+  .marksheet-sheet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    height: 7.99in;
+    overflow: hidden;
+  }
+}
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.table-scroll > table {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .table-scroll {
+    margin-inline: -0.25rem;
+  }
+
+  .table-scroll > table {
+    min-width: max-content;
+    font-size: 0.72rem;
+  }
+
+  .table-scroll th,
+  .table-scroll td {
+    padding: 0.45rem 0.55rem;
   }
 }
 

@@ -38,6 +38,17 @@ function Subjects() {
     loadSubjects()
   }, [])
 
+  const orderedItems = [...items].sort((a, b) => {
+    const orderA = Number(a.sortOrder ?? 0)
+    const orderB = Number(b.sortOrder ?? 0)
+
+    if (orderA !== orderB) {
+      return orderA - orderB
+    }
+
+    return String(a.name || '').localeCompare(String(b.name || ''), 'bn')
+  })
+
   const handleCreate = async (event) => {
     event.preventDefault()
     setError('')
@@ -124,80 +135,91 @@ function Subjects() {
         {status === 'ready' && items.length === 0 ? (
           <p className="text-sm text-muted">এখনো কোনো বিষয় যোগ হয়নি।</p>
         ) : null}
-        {items.length > 0 ? (
-          <div className="grid gap-3 text-sm text-muted">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="border border-line px-4 py-3"
-              >
-                {editingId === item.id ? (
-                  <div className="grid gap-3">
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      value={editingForm.name}
-                      onChange={(event) =>
-                        setEditingForm((prev) => ({
-                          ...prev,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                    <textarea
-                      className="min-h-[100px] border border-line bg-white px-3 py-2 text-ink"
-                      value={editingForm.syllabus}
-                      onChange={(event) =>
-                        setEditingForm((prev) => ({
-                          ...prev,
-                          syllabus: event.target.value,
-                        }))
-                      }
-                    />
-                    <div className="flex items-center gap-2 text-xs">
-                      <button
-                        type="button"
-                        className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                        onClick={() => saveEdit(item.id)}
-                      >
-                        সংরক্ষণ
-                      </button>
-                      <button
-                        type="button"
-                        className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                        onClick={cancelEdit}
-                      >
-                        বাতিল
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid gap-2">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="font-semibold text-ink">{item.name}</p>
-                      <p className="text-xs text-muted">
-                        ক্রমিক: {item.sortOrder ?? '-'}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs">
-                        <button
-                          type="button"
-                          className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                          onClick={() => startEdit(item)}
-                        >
-                          সম্পাদনা
-                        </button>
-                        <button
-                          type="button"
-                          className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          মুছুন
-                        </button>
+        {orderedItems.length > 0 ? (
+          <div className="table-scroll">
+            <table className="w-full min-w-[720px] border-collapse text-sm text-muted">
+              <thead>
+                <tr className="bg-[var(--surface-alt)] text-xs uppercase text-muted">
+                  <th className="border border-line px-3 py-2 text-center">ক্রমিক</th>
+                  <th className="border border-line px-3 py-2 text-center">বিষয়ের নাম</th>
+                  <th className="border border-line px-3 py-2 text-center">একশন</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedItems.map((item, index) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="border border-line px-3 py-2 text-center align-middle text-ink">{index + 1}</td>
+                    <td className="border border-line px-3 py-2 text-ink">
+                      {editingId === item.id ? (
+                        <div className="grid gap-3">
+                          <input
+                            className="h-10 border border-line bg-white px-3 text-ink"
+                            value={editingForm.name}
+                            onChange={(event) =>
+                              setEditingForm((prev) => ({
+                                ...prev,
+                                name: event.target.value,
+                              }))
+                            }
+                          />
+                          <textarea
+                            className="min-h-[100px] border border-line bg-white px-3 py-2 text-ink"
+                            value={editingForm.syllabus}
+                            onChange={(event) =>
+                              setEditingForm((prev) => ({
+                                ...prev,
+                                syllabus: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <p className="font-semibold text-ink">{item.name}</p>
+                      )}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-center align-middle">
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                        {editingId === item.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => saveEdit(item.id)}
+                            >
+                              সংরক্ষণ
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={cancelEdit}
+                            >
+                              বাতিল
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => startEdit(item)}
+                            >
+                              সম্পাদনা
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              মুছুন
+                            </button>
+                          </>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </SectionCard>

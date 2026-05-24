@@ -6,6 +6,7 @@ import { getSubjects } from '../../services/subjects.js'
 import { getGroups } from '../../services/groups.js'
 import { getRegistrations, updateRegistrationMarks } from '../../services/registrations.js'
 import { getGroupSubjectOptions } from '../../utils/groupSubjects.js'
+import { abbreviateClassName } from '../../utils/classDisplay.js'
 import { sortRegistrationsByClass } from '../../utils/registrationOrdering.js'
 import { getMarkCriteria } from '../../utils/markCriteria.js'
 
@@ -53,29 +54,29 @@ function MarksEntry() {
     [selectedSubject?.name],
   )
 
-  const loadReferenceData = async () => {
-    setStatus('loading')
-    setError('')
-    try {
-      const yearId = await getActiveYearId()
-      const [groupList, classList, subjectList] = await Promise.all([
-        getGroups(yearId),
-        getClasses(yearId),
-        getSubjects(yearId),
-      ])
-      setActiveYearId(yearId)
-      setGroups(groupList)
-      setClasses(classList)
-      setSubjects(subjectList)
-      setStatus('ready')
-    } catch (err) {
-      setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
-      setStatus('error')
-    }
-  }
-
   useEffect(() => {
-    loadReferenceData()
+    const loadReferenceData = async () => {
+      setStatus('loading')
+      setError('')
+      try {
+        const yearId = await getActiveYearId()
+        const [groupList, classList, subjectList] = await Promise.all([
+          getGroups(yearId),
+          getClasses(yearId),
+          getSubjects(yearId),
+        ])
+        setActiveYearId(yearId)
+        setGroups(groupList)
+        setClasses(classList)
+        setSubjects(subjectList)
+        setStatus('ready')
+      } catch (err) {
+        setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
+        setStatus('error')
+      }
+    }
+
+    void loadReferenceData()
   }, [])
 
   useEffect(() => {
@@ -307,33 +308,33 @@ function MarksEntry() {
                 <p>গ্রুপ ও বিষয় নির্বাচন করুন।</p>
               )}
             </div>
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="border border-line bg-white">
-                    <th className="border border-line px-3 py-2 text-left">ক্রমিক</th>
-                    <th className="border border-line px-3 py-2 text-left">রোল</th>
-                    <th className="border border-line px-3 py-2 text-left">নাম</th>
-                    {criteriaLabels.map((label) => (
-                      <th key={label} className="border border-line px-3 py-2">
+                      <th className="border border-line px-3 py-2 text-center">ক্রমিক</th>
+                      <th className="border border-line px-3 py-2 text-left">প্রতিযোগীর নাম</th>
+                      <th className="border border-line px-3 py-2 text-left">শ্রেণী</th>
+                      {criteriaLabels.map((label) => (
+                        <th key={label} className="border border-line px-3 py-2 text-center">
                         {label}
                       </th>
                     ))}
-                    <th className="border border-line px-3 py-2">মোট</th>
-                    <th className="border border-line px-3 py-2">সংরক্ষণ</th>
+                      <th className="border border-line px-3 py-2 text-center">মোট</th>
+                      <th className="border border-line px-3 py-2 text-center">সংরক্ষণ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
                     <tr key={item.id} className="border border-line">
-                      <td className="border border-line px-3 py-2">
-                        #{item.serialNumber ?? '-'}
+                        <td className="border border-line px-3 py-2 text-center">
+                          {item.serialNumber ?? '-'}
                       </td>
-                      <td className="border border-line px-3 py-2">
-                        {item.rollNumber}
+                        <td className="border border-line px-3 py-2">
+                          {item.studentName}
                       </td>
-                      <td className="border border-line px-3 py-2">
-                        {item.studentName}
+                        <td className="border border-line px-3 py-2">
+                          {abbreviateClassName(item.className || '')}
                       </td>
                       <td className="border border-line px-2 py-2">
                         <input

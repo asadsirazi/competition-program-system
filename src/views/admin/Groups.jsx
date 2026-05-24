@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import SectionCard from '../../components/SectionCard.jsx'
 import { getActiveYearId } from '../../services/activeYear.js'
 import { getClasses } from '../../services/classes.js'
@@ -52,6 +52,8 @@ function Groups() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState('')
   const [editingForm, setEditingForm] = useState(emptyForm)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const createPanelRef = useRef(null)
 
   const classOptions = useMemo(
     () => classes.map((item) => ({ id: item.id, name: item.name })),
@@ -86,6 +88,14 @@ function Groups() {
   useEffect(() => {
     loadGroups()
   }, [])
+
+  useEffect(() => {
+    if (!isCreateOpen) {
+      return
+    }
+
+    createPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [isCreateOpen])
 
   const handleCreate = async (event) => {
     event.preventDefault()
@@ -212,63 +222,83 @@ function Groups() {
         <div className="mb-4 text-xs text-muted">
           সক্রিয় বছর: {activeYearId || 'নির্ধারিত নয়'}
         </div>
-        <form className="grid gap-4" onSubmit={handleCreate}>
-          <label className="grid gap-2 text-sm text-muted">
-            গ্রুপের নাম
-            <input
-              className="h-11 border border-line bg-white px-3 text-ink"
-              value={form.name}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, name: event.target.value }))
-              }
-              placeholder="গ্রুপ এ"
-            />
-          </label>
-          <div className="grid gap-2 text-sm text-muted">
-            শ্রেণি নির্বাচন
-            <div className="grid gap-2 md:grid-cols-2">
-              {classOptions.length === 0 ? (
-                <p className="text-xs text-muted">শ্রেণি যোগ করা হয়নি।</p>
-              ) : (
-                classOptions.map((option) =>
-                  renderClassOption(option, form.classes, (item) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      classes: toggleSelection(prev.classes, item),
-                    })),
-                  ),
-                )
-              )}
-            </div>
+        <button
+          type="button"
+          className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+          onClick={() => setIsCreateOpen(true)}
+        >
+          গ্রুপ তৈরি করুন
+        </button>
+        {isCreateOpen ? (
+          <div ref={createPanelRef} className="mt-4 border border-line bg-[var(--surface-alt)] p-4 sm:p-5">
+            <form className="grid gap-4" onSubmit={handleCreate}>
+              <label className="grid gap-2 text-sm text-muted">
+                গ্রুপের নাম
+                <input
+                  className="h-11 border border-line bg-white px-3 text-ink"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  placeholder="গ্রুপ এ"
+                />
+              </label>
+              <div className="grid gap-2 text-sm text-muted">
+                শ্রেণি নির্বাচন
+                <div className="grid gap-2 md:grid-cols-2">
+                  {classOptions.length === 0 ? (
+                    <p className="text-xs text-muted">শ্রেণি যোগ করা হয়নি।</p>
+                  ) : (
+                    classOptions.map((option) =>
+                      renderClassOption(option, form.classes, (item) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          classes: toggleSelection(prev.classes, item),
+                        })),
+                      ),
+                    )
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-2 text-sm text-muted">
+                বিষয় নির্বাচন
+                <div className="grid gap-2 md:grid-cols-2">
+                  {subjectOptions.length === 0 ? (
+                    <p className="text-xs text-muted">বিষয় যোগ করা হয়নি।</p>
+                  ) : (
+                    subjectOptions.map((option) =>
+                      renderSubjectOption(option, form.subjects, (updater) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          subjects:
+                            typeof updater === 'function'
+                              ? updater(prev.subjects)
+                              : updater,
+                        })),
+                      ),
+                    )
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="submit"
+                  className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+                  disabled={!activeYearId}
+                >
+                  যোগ করুন
+                </button>
+                <button
+                  type="button"
+                  className="h-11 border border-line bg-white px-4 text-sm font-semibold text-muted"
+                  onClick={() => setIsCreateOpen(false)}
+                >
+                  বন্ধ করুন
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="grid gap-2 text-sm text-muted">
-            বিষয় নির্বাচন
-            <div className="grid gap-2 md:grid-cols-2">
-              {subjectOptions.length === 0 ? (
-                <p className="text-xs text-muted">বিষয় যোগ করা হয়নি।</p>
-              ) : (
-                subjectOptions.map((option) =>
-                  renderSubjectOption(option, form.subjects, (updater) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      subjects:
-                        typeof updater === 'function'
-                          ? updater(prev.subjects)
-                          : updater,
-                    })),
-                  ),
-                )
-              )}
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
-            disabled={!activeYearId}
-          >
-            যোগ করুন
-          </button>
-        </form>
+        ) : null}
         {error ? (
           <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
             {error}

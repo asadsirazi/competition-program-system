@@ -36,6 +36,17 @@ function Classes() {
     loadClasses()
   }, [])
 
+  const orderedItems = [...items].sort((a, b) => {
+    const orderA = Number(a.sortOrder ?? 0)
+    const orderB = Number(b.sortOrder ?? 0)
+
+    if (orderA !== orderB) {
+      return orderA - orderB
+    }
+
+    return String(a.name || '').localeCompare(String(b.name || ''), 'bn')
+  })
+
   const handleCreate = async (event) => {
     event.preventDefault()
     setError('')
@@ -120,64 +131,74 @@ function Classes() {
         {status === 'ready' && items.length === 0 ? (
           <p className="text-sm text-muted">এখনো কোনো শ্রেণি যোগ হয়নি।</p>
         ) : null}
-        {items.length > 0 ? (
-          <div className="grid gap-3 text-sm text-muted">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 border border-line px-4 py-3"
-              >
-                {editingId === item.id ? (
-                  <input
-                    className="h-10 w-full max-w-xs border border-line bg-white px-3 text-ink"
-                    value={editingName}
-                    onChange={(event) => setEditingName(event.target.value)}
-                  />
-                ) : (
-                  <p className="font-semibold text-ink">{item.name}</p>
-                )}
-                <p className="text-xs text-muted">
-                  ক্রমিক: {item.sortOrder ?? '-'}
-                </p>
-                <div className="flex items-center gap-2 text-xs">
-                  {editingId === item.id ? (
-                    <>
-                      <button
-                        type="button"
-                        className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                        onClick={() => saveEdit(item.id)}
-                      >
-                        সংরক্ষণ
-                      </button>
-                      <button
-                        type="button"
-                        className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                        onClick={cancelEdit}
-                      >
-                        বাতিল
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
-                        onClick={() => startEdit(item)}
-                      >
-                        সম্পাদনা
-                      </button>
-                      <button
-                        type="button"
-                        className="h-9 border border-line bg-white px-4 font-semibold text-muted"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        মুছুন
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+        {orderedItems.length > 0 ? (
+          <div className="table-scroll">
+            <table className="w-full min-w-[640px] border-collapse text-sm text-muted">
+              <thead>
+                <tr className="bg-[var(--surface-alt)] text-xs uppercase text-muted">
+                  <th className="border border-line px-3 py-2 text-center">ক্রমিক</th>
+                  <th className="border border-line px-3 py-2 text-center">শ্রেণীর নাম</th>
+                  <th className="border border-line px-3 py-2 text-center">একশন</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderedItems.map((item, index) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="border border-line px-3 py-2 text-center align-middle text-ink">{index + 1}</td>
+                    <td className="border border-line px-3 py-2 text-ink">
+                      {editingId === item.id ? (
+                        <input
+                          className="h-10 w-full border border-line bg-white px-3 text-ink"
+                          value={editingName}
+                          onChange={(event) => setEditingName(event.target.value)}
+                        />
+                      ) : (
+                        <p className="font-semibold text-ink">{item.name}</p>
+                      )}
+                    </td>
+                    <td className="border border-line px-3 py-2 text-center align-middle">
+                      <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+                        {editingId === item.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => saveEdit(item.id)}
+                            >
+                              সংরক্ষণ
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={cancelEdit}
+                            >
+                              বাতিল
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="h-9 border border-ink bg-white px-4 font-semibold text-ink"
+                              onClick={() => startEdit(item)}
+                            >
+                              সম্পাদনা
+                            </button>
+                            <button
+                              type="button"
+                              className="h-9 border border-line bg-white px-4 font-semibold text-muted"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              মুছুন
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </SectionCard>
