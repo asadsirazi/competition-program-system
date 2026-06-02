@@ -11,7 +11,7 @@ import { getRegistrations } from '../services/registrations.js'
 import { getGroupSubjectOptions } from '../utils/groupSubjects.js'
 import { rankResults } from '../utils/resultScoring.js'
 
-const emptyFilters = { groupId: '', subjectId: '', classId: '' }
+const emptyFilters = { groupId: '', subjectId: '' }
 
 function PublicResults() {
   const [activeYearId, setActiveYearId] = useState('')
@@ -170,7 +170,7 @@ function PublicResults() {
             </p>
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 <label className="grid gap-2 text-sm text-muted">
                   গ্রুপ
                   <select
@@ -212,26 +212,6 @@ function PublicResults() {
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-2 text-sm text-muted">
-                  শ্রেণি
-                  <select
-                    className="h-11 border border-line bg-white px-3 text-ink"
-                    value={filters.classId}
-                    onChange={(event) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        classId: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">নির্বাচন করুন</option>
-                    {classes.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
@@ -261,7 +241,6 @@ function PublicResults() {
               <div className="mb-3 text-xs text-muted">
                 <p>গ্রুপ: {groupMap[filters.groupId] || 'নির্বাচন করুন'}</p>
                 <p>বিষয়: {subjectMap[filters.subjectId] || 'নির্বাচন করুন'}</p>
-                <p>শ্রেণি: {classMap[filters.classId] || 'নির্বাচন করুন'}</p>
               </div>
               <ResultsTable items={items} />
             </div>
