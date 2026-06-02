@@ -21,13 +21,15 @@ function MarksEntry() {
   const [items, setItems] = useState([])
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
+  const [trackingStatus, setTrackingStatus] = useState('idle')
+  const [trackingError, setTrackingError] = useState('')
   const [savingId, setSavingId] = useState('')
   const [bulkStatus, setBulkStatus] = useState('')
   const [savingAll, setSavingAll] = useState(false)
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 })
-  const [autoSaveNote, setAutoSaveNote] = useState('')
+  const [dirtyIds, setDirtyIds] = useState([])
+  const [allRegistrations, setAllRegistrations] = useState([])
   const itemsRef = useRef([])
-  const timersRef = useRef({})
 
   const groupMap = useMemo(
     () => Object.fromEntries(groups.map((item) => [item.id, item.name])),
@@ -83,6 +85,21 @@ function MarksEntry() {
     itemsRef.current = items
   }, [items])
 
+  useEffect(() => {
+    if (!activeYearId) {
+      return
+    }
+    void loadTracking()
+  }, [activeYearId])
+
+  useEffect(() => {
+    setDirtyIds([])
+    setBulkStatus('')
+    setSavingId('')
+    setSavingAll(false)
+    setBulkProgress({ done: 0, total: 0 })
+  }, [activeYearId, filters.groupId, filters.subjectId])
+
   const loadMarks = async () => {
     if (!activeYearId) {
       return
@@ -98,6 +115,7 @@ function MarksEntry() {
         judge3: item.judge3 ?? '',
       }))
       setItems(hydrated)
+      setDirtyIds([])
       setStatus('ready')
     } catch (err) {
       setError(err.message || 'মার্কস লোড করা যায়নি।')
@@ -105,37 +123,33 @@ function MarksEntry() {
     }
   }
 
+  const loadTracking = async () => {
+    if (!activeYearId) {
+      return
+    }
+    setTrackingStatus('loading')
+    setTrackingError('')
+    try {
+      const list = await getRegistrations(activeYearId)
+      setAllRegistrations(list)
+      setTrackingStatus('ready')
+    } catch (err) {
+      setTrackingError(err.message || 'ট্র্যাকিং ডাটা আনা যায়নি।')
+      setTrackingStatus('error')
+    }
+  }
+
   const updateMark = (id, field, value) => {
-    setAutoSaveNote('')
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, [field]: value } : item,
       ),
     )
+    setDirtyIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+  }
 
-    if (timersRef.current[id]) {
-      clearTimeout(timersRef.current[id])
-    }
-
-    timersRef.current[id] = setTimeout(async () => {
-      const current = itemsRef.current.find((item) => item.id === id)
-      if (!current || savingAll) {
-        return
-      }
-      if ([current.judge1, current.judge2, current.judge3].some((v) => v === '')) {
-        return
-      }
-      try {
-        await updateRegistrationMarks(activeYearId, id, {
-          judge1: current.judge1,
-          judge2: current.judge2,
-          judge3: current.judge3,
-        })
-        setAutoSaveNote(`স্বয়ংক্রিয় সংরক্ষণ: ${current.studentName}`)
-      } catch (err) {
-        setError(err.message || 'অটো-সেভ ব্যর্থ হয়েছে।')
-      }
-    }, 800)
+  const clearDirtyId = (id) => {
+    setDirtyIds((prev) => prev.filter((itemId) => itemId !== id))
   }
 
   const handleSave = async (item) => {
@@ -147,7 +161,9 @@ function MarksEntry() {
         judge2: item.judge2,
         judge3: item.judge3,
       })
+      clearDirtyId(item.id)
       await loadMarks()
+      await loadTracking()
     } catch (err) {
       setError(err.message || 'মার্কস সংরক্ষণ করা যায়নি।')
     } finally {
@@ -158,12 +174,14 @@ function MarksEntry() {
   const handleSaveAll = async () => {
     setError('')
     setBulkStatus('')
-    if (!items.length) {
+    const dirtyItems = itemsRef.current.filter((item) => dirtyIds.includes(item.id))
+
+    if (!dirtyItems.length) {
       setBulkStatus('সংরক্ষণের জন্য কোনো তথ্য নেই।')
       return
     }
 
-    const invalid = items.filter((item) =>
+    const invalid = dirtyItems.filter((item) =>
       [item.judge1, item.judge2, item.judge3].some(
         (value) => value === '' || value === null || value === undefined,
       ),
@@ -175,9 +193,9 @@ function MarksEntry() {
     }
 
     setSavingAll(true)
-    setBulkProgress({ done: 0, total: items.length })
+    setBulkProgress({ done: 0, total: dirtyItems.length })
     try {
-      for (const item of items) {
+      for (const item of dirtyItems) {
         await updateRegistrationMarks(activeYearId, item.id, {
           judge1: item.judge1,
           judge2: item.judge2,
@@ -189,7 +207,9 @@ function MarksEntry() {
         }))
       }
       setBulkStatus('সব মার্কস সংরক্ষণ হয়েছে।')
+      setDirtyIds([])
       await loadMarks()
+      await loadTracking()
     } catch (err) {
       setError(err.message || 'সব মার্কস সংরক্ষণ করা যায়নি।')
     } finally {
@@ -199,6 +219,61 @@ function MarksEntry() {
 
   const showMetadata =
     filters.groupId && filters.subjectId
+
+  const registrationsByGroup = useMemo(() => {
+    const grouped = {}
+    allRegistrations.forEach((item) => {
+      if (!item.groupId || !item.subjectId) {
+        return
+      }
+      if (!grouped[item.groupId]) {
+        grouped[item.groupId] = {}
+      }
+      if (!grouped[item.groupId][item.subjectId]) {
+        grouped[item.groupId][item.subjectId] = []
+      }
+      grouped[item.groupId][item.subjectId].push(item)
+    })
+    return grouped
+  }, [allRegistrations])
+
+  const subjectNamesForGroup = (group) => {
+    const subjectList = (group?.subjects || []).map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+    }))
+
+    if (subjectList.length) {
+      return subjectList
+    }
+
+    const groupMap = registrationsByGroup[group.id] || {}
+    return Object.keys(groupMap).map((subjectId) => ({
+      id: subjectId,
+      name: subjectMap[subjectId] || 'বিষয়',
+    }))
+  }
+
+  const getEntryStatus = (list) => {
+    const total = list.length
+    if (!total) {
+      return { label: 'নিবন্ধন নেই', tone: 'text-muted', done: 0, total: 0 }
+    }
+
+    const done = list.filter((item) =>
+      [item.judge1, item.judge2, item.judge3].every(
+        (value) => value !== '' && value !== null && value !== undefined,
+      ),
+    ).length
+
+    if (done === 0) {
+      return { label: 'এন্ট্রি বাকি', tone: 'text-red-700', done, total }
+    }
+    if (done === total) {
+      return { label: 'এন্ট্রি শেষ', tone: 'text-emerald-700', done, total }
+    }
+    return { label: 'আংশিক', tone: 'text-amber-700', done, total }
+  }
 
   return (
     <div className="grid gap-6">
@@ -254,23 +329,10 @@ function MarksEntry() {
           >
             তালিকা লোড করুন
           </button>
-          <button
-            type="button"
-            className="h-10 border border-ink bg-ink px-4 text-xs font-semibold text-white"
-            onClick={handleSaveAll}
-            disabled={savingAll}
-          >
-            {savingAll ? 'সব সংরক্ষণ হচ্ছে...' : 'সব সংরক্ষণ করুন'}
-          </button>
         </div>
         {error ? (
           <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
             {error}
-          </p>
-        ) : null}
-        {autoSaveNote ? (
-          <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
-            {autoSaveNote}
           </p>
         ) : null}
         {bulkStatus ? (
@@ -282,6 +344,57 @@ function MarksEntry() {
           <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
             অগ্রগতি: {bulkProgress.done}/{bulkProgress.total}
           </p>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard title="মার্কস এন্ট্রি ট্র্যাকিং" subtitle="গ্রুপ ও বিষয় অনুযায়ী অগ্রগতি">
+        {trackingStatus === 'loading' ? (
+          <p className="text-sm text-muted">ট্র্যাকিং লোড হচ্ছে...</p>
+        ) : null}
+        {trackingStatus === 'error' ? (
+          <p className="text-sm text-muted">{trackingError}</p>
+        ) : null}
+        {trackingStatus === 'ready' ? (
+          <div className="grid gap-4">
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted">গ্রুপ পাওয়া যায়নি।</p>
+            ) : (
+              groups.map((group) => {
+                const subjectList = subjectNamesForGroup(group)
+                return (
+                  <div key={group.id} className="border border-line bg-white px-4 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink">{group.name}</p>
+                      <span className="text-xs text-muted">বিষয়: {subjectList.length}টি</span>
+                    </div>
+                    {subjectList.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted">এই গ্রুপে কোনো বিষয় নেই।</p>
+                    ) : (
+                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                        {subjectList.map((subject) => {
+                          const list = registrationsByGroup[group.id]?.[subject.id] || []
+                          const statusInfo = getEntryStatus(list)
+                          return (
+                            <div key={subject.id} className="border border-line px-3 py-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-ink">{subject.name}</p>
+                                <span className={`text-xs font-semibold ${statusInfo.tone}`}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-xs text-muted">
+                                এন্ট্রি: {statusInfo.done}/{statusInfo.total}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
         ) : null}
       </SectionCard>
 
@@ -382,19 +495,33 @@ function MarksEntry() {
                         {item.total ?? '-'}
                       </td>
                       <td className="border border-line px-3 py-2 text-center">
-                        <button
-                          type="button"
-                          className="h-9 border border-ink bg-white px-3 text-xs font-semibold text-ink"
-                          onClick={() => handleSave(item)}
-                          disabled={savingId === item.id}
-                        >
-                          {savingId === item.id ? 'সংরক্ষণ...' : 'সংরক্ষণ'}
-                        </button>
+                        {dirtyIds.includes(item.id) ? (
+                          <button
+                            type="button"
+                            className="h-9 border border-ink bg-white px-3 text-xs font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => handleSave(item)}
+                            disabled={savingId === item.id || savingAll}
+                          >
+                            {savingId === item.id ? 'সংরক্ষণ...' : 'সংরক্ষণ'}
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="border-t border-line px-4 py-3">
+              <button
+                type="button"
+                className="h-10 border border-ink bg-ink px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleSaveAll}
+                disabled={savingAll || dirtyIds.length === 0}
+              >
+                {savingAll
+                  ? `সব সংরক্ষণ হচ্ছে... (${bulkProgress.done}/${bulkProgress.total})`
+                  : 'সব সংরক্ষণ করুন'}
+              </button>
             </div>
           </div>
         ) : null}

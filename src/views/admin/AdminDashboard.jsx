@@ -17,6 +17,7 @@ const quickLinks = [
   { label: 'গ্রুপ', hint: 'শ্রেণি ও বিষয় ম্যাপিং', to: '/admin/groups' },
   { label: 'শিক্ষক', hint: 'লিড ও সহকারী', to: '/admin/teachers' },
   { label: 'রেজিস্ট্রেশন', hint: 'শিক্ষার্থী নিবন্ধন', to: '/admin/registrations' },
+  { label: 'দায়িত্ব বণ্টন', hint: 'হোম পেজ তথ্য', to: '/admin/assignments' },
   { label: 'মার্কশিট', hint: 'প্রিন্ট শিট', to: '/admin/marksheets' },
   { label: 'মার্কস এন্ট্রি', hint: 'বিচারকের নম্বর', to: '/admin/marks-entry' },
   { label: 'ফলাফল', hint: 'মেধা তালিকা', to: '/admin/results' },

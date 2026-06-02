@@ -18,12 +18,21 @@ function ResultsTable({ items, criteriaLabels = ['বিচার ১', 'বি�
               </th>
             ))}
             <th className="border border-line px-3 py-2 text-center">মোট</th>
+            <th className="border border-line px-3 py-2 text-center">পার্সেন্টেজ</th>
             <th className="border border-line px-3 py-2 text-center">মেধাক্রম</th>
           </tr>
         </thead>
         <tbody>
-          {ranked.map((item) => (
-            <tr key={item.id} className="border border-line">
+          {ranked.map((item) => {
+            const meritTone = item.merit === 1
+              ? 'bg-emerald-50'
+              : item.merit === 2
+                ? 'bg-amber-50'
+                : item.merit === 3
+                  ? 'bg-sky-50'
+                  : ''
+            return (
+            <tr key={item.id} className={`border border-line ${meritTone}`}>
               <td className="border border-line px-3 py-2 text-center">{item.serialNumber ?? '-'}</td>
               <td className="border border-line px-3 py-2">{item.studentName}</td>
               <td className="border border-line px-3 py-2">{abbreviateClassName(item.className || '')}</td>
@@ -31,9 +40,13 @@ function ResultsTable({ items, criteriaLabels = ['বিচার ১', 'বি�
               <td className="border border-line px-3 py-2 text-center">{item.judge2 ?? '-'}</td>
               <td className="border border-line px-3 py-2 text-center">{item.judge3 ?? '-'}</td>
               <td className="border border-line px-3 py-2 text-center">{item.total ?? '-'}</td>
-              <td className="border border-line px-3 py-2 text-center">{item.merit || '-'}</td>
+              <td className="border border-line px-3 py-2 text-center">
+                {Number.isFinite(item.percentage) ? `${item.percentage}%` : '-'}
+              </td>
+              <td className="border border-line px-3 py-2 text-center font-semibold">{item.merit || '-'}</td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

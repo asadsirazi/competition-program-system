@@ -4,6 +4,7 @@ import { getActiveYearId } from '../../services/activeYear.js'
 import { getClasses } from '../../services/classes.js'
 import { getSubjects } from '../../services/subjects.js'
 import { getGroups } from '../../services/groups.js'
+import { abbreviateClassName } from '../../utils/classDisplay.js'
 import { getGroupSubjectOptions } from '../../utils/groupSubjects.js'
 import { sortRegistrationsByGroupSubject } from '../../utils/registrationOrdering.js'
 import {
@@ -29,6 +30,172 @@ const emptyEditingForm = {
   rollNumber: '',
 }
 
+const emptyBulkForm = {
+  groupId: '',
+  subjectId: '',
+  rows: '',
+}
+
+const bengaliDigits = {
+  '০': '0',
+  '১': '1',
+  '২': '2',
+  '৩': '3',
+  '৪': '4',
+  '৫': '5',
+  '৬': '6',
+  '৭': '7',
+  '৮': '8',
+  '৯': '9',
+}
+
+function normalizeLookupText(value = '') {
+  return String(value).replace(/[—–]/g, '-').replace(/\s+/g, '').toLowerCase()
+}
+
+function normalizeDigits(value = '') {
+  return String(value).replace(/[০-৯]/g, (digit) => bengaliDigits[digit] || digit).trim()
+}
+
+function splitClassAndRoll(value = '') {
+  const normalizedValue = normalizeDigits(String(value).trim())
+  if (!normalizedValue) {
+    return { classLabel: '', rollNumber: '' }
+  }
+
+  const compactMatch = normalizedValue.match(/^(.*?)[\s,]+([0-9]+)$/)
+  if (compactMatch) {
+    return {
+      classLabel: compactMatch[1].trim(),
+      rollNumber: compactMatch[2].trim(),
+    }
+  }
+
+  return { classLabel: normalizedValue, rollNumber: '' }
+}
+
+function findClassByLabel(label, classes) {
+  const normalizedLabel = normalizeLookupText(label)
+
+  return classes.find((item) => {
+    const candidates = [item.name, abbreviateClassName(item.name)]
+    return candidates.some((candidate) => normalizeLookupText(candidate) === normalizedLabel)
+  })
+}
+
+function parseBulkRows(text) {
+  return String(text)
+    .split(/\r?\n/)
+    .map((line, index) => ({ line: line.trim(), lineNumber: index + 1 }))
+    .filter(({ line }) => line)
+    .filter(({ line }) => !/^(ক্র|ক্রম|ক্রমিক|প্রতিযোগির নাম|নাম|শ্রেণী|শ্রেণি|রোল)\b/i.test(line))
+    .map(({ line, lineNumber }) => {
+      const normalizedLine = line.replace(/[\t]+/g, ',')
+      const parts = normalizedLine
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+      if (parts.length >= 4) {
+        return {
+          lineNumber,
+          serialNumber: normalizeDigits(parts[0]),
+          studentName: parts[1],
+          classLabel: parts[2],
+          rollNumber: normalizeDigits(parts[3]),
+        }
+      }
+
+      if (parts.length === 3) {
+        const classAndRoll = splitClassAndRoll(parts[2])
+        return {
+          lineNumber,
+          serialNumber: normalizeDigits(parts[0]),
+          studentName: parts[1],
+          classLabel: classAndRoll.classLabel,
+          rollNumber: classAndRoll.rollNumber,
+        }
+      }
+
+      const serialStrippedLine = normalizeDigits(line).replace(/^[\s]*([0-9]+)\s*[.)\-:—–]?\s*/, '')
+      const tabParts = serialStrippedLine
+        .split(/\t+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+      if (tabParts.length === 3) {
+        const classAndRoll = splitClassAndRoll(tabParts[2])
+        return {
+          lineNumber,
+          serialNumber: normalizeDigits(line.match(/^[\s]*([০-৯0-9]+)/)?.[1] || ''),
+          studentName: tabParts[0],
+          classLabel: classAndRoll.classLabel,
+          rollNumber: classAndRoll.rollNumber,
+        }
+      }
+
+      const whitespaceParts = serialStrippedLine
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+
+      if (whitespaceParts.length >= 3) {
+        const rollNumber = whitespaceParts[whitespaceParts.length - 1]
+        const classLabel = whitespaceParts[whitespaceParts.length - 2]
+        const studentName = whitespaceParts.slice(0, -2).join(' ')
+        return {
+          lineNumber,
+          serialNumber: normalizeDigits(line.match(/^[\s]*([০-৯0-9]+)/)?.[1] || ''),
+          studentName,
+          classLabel,
+          rollNumber: normalizeDigits(rollNumber),
+        }
+      }
+
+      return {
+        lineNumber,
+        serialNumber: '',
+        studentName: '',
+        classLabel: '',
+        rollNumber: '',
+      }
+    })
+}
+
+function validateBulkRow(row, classes) {
+  const serialNumber = normalizeDigits(row.serialNumber)
+  const studentName = row.studentName.trim()
+  const classLabel = row.classLabel.trim()
+  const rollNumber = Number(normalizeDigits(row.rollNumber))
+  const classItem = findClassByLabel(classLabel, classes)
+  const errors = []
+
+  if (!serialNumber) {
+    errors.push('ক্রমিক নেই')
+  }
+  if (!studentName) {
+    errors.push('নাম নেই')
+  }
+  if (!classLabel) {
+    errors.push('শ্রেণী নেই')
+  } else if (!classItem) {
+    errors.push(`শ্রেণী "${classLabel}" মেলেনি`)
+  }
+  if (Number.isNaN(rollNumber) || rollNumber <= 0) {
+    errors.push('রোল সঠিক নয়')
+  }
+
+  return {
+    ...row,
+    serialNumber,
+    studentName,
+    classLabel,
+    rollNumber,
+    classItem,
+    errors,
+  }
+}
+
 function sortClassesForDisplay(items) {
   return [...items].sort((a, b) => (b.sortOrder || 0) - (a.sortOrder || 0))
 }
@@ -45,6 +212,9 @@ function Registrations() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState('')
   const [editingForm, setEditingForm] = useState(emptyEditingForm)
+  const [bulkForm, setBulkForm] = useState(emptyBulkForm)
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 })
 
   const groupMap = useMemo(
     () => Object.fromEntries(groups.map((item) => [item.id, item.name])),
@@ -79,6 +249,23 @@ function Registrations() {
     () => sortRegistrationsByGroupSubject(items, groups, subjects),
     [items, groups, subjects],
   )
+  const resolvedBulkGroup = useMemo(
+    () => groups.find((item) => item.id === bulkForm.groupId),
+    [groups, bulkForm.groupId],
+  )
+  const resolvedBulkSubject = useMemo(
+    () => subjects.find((item) => item.id === bulkForm.subjectId),
+    [subjects, bulkForm.subjectId],
+  )
+  const bulkSubjectOptions = useMemo(
+    () => getGroupSubjectOptions(resolvedBulkGroup, subjects),
+    [resolvedBulkGroup, subjects],
+  )
+  const bulkPreviewRows = useMemo(
+    () => parseBulkRows(bulkForm.rows).map((row) => validateBulkRow(row, sortedClasses)),
+    [bulkForm.rows, sortedClasses],
+  )
+  const bulkPreviewErrors = bulkPreviewRows.filter((row) => row.errors.length > 0)
 
   const loadRegistrations = async (yearId, activeFilters) => {
     setStatus('loading')
@@ -134,6 +321,61 @@ function Registrations() {
       await loadRegistrations(activeYearId, filters)
     } catch (err) {
       setError(err.message || 'রেজিস্ট্রেশন যোগ করা যায়নি।')
+    }
+  }
+
+  const handleBulkCreate = async (event) => {
+    event.preventDefault()
+    setError('')
+    setBulkStatus('')
+
+    if (!activeYearId) {
+      setBulkStatus('সক্রিয় বছর পাওয়া যায়নি।')
+      return
+    }
+    if (!bulkForm.groupId || !bulkForm.subjectId) {
+      setBulkStatus('আগে গ্রুপ এবং বিষয় নির্বাচন করুন।')
+      return
+    }
+
+    const parsedRows = bulkPreviewRows
+    if (!parsedRows.length) {
+      setBulkStatus('পেস্ট করা তালিকায় বৈধ কোনো সারি পাওয়া যায়নি।')
+      return
+    }
+
+    try {
+      if (bulkPreviewErrors.length > 0) {
+        const firstError = bulkPreviewErrors[0]
+        throw new Error(`লাইন ${firstError.lineNumber}: ${firstError.errors.join(', ')}`)
+      }
+
+      const resolvedRows = parsedRows
+
+      setBulkProgress({ done: 0, total: resolvedRows.length })
+
+      for (const [index, row] of resolvedRows.entries()) {
+        await createRegistration(activeYearId, {
+          groupId: bulkForm.groupId,
+          groupName: resolvedBulkGroup?.name || '',
+          subjectId: bulkForm.subjectId,
+          subjectName: resolvedBulkSubject?.name || '',
+          classId: row.classItem.id,
+          className: row.classItem.name || '',
+          studentName: row.studentName,
+          rollNumber: row.rollNumber,
+        })
+        setBulkProgress({ done: index + 1, total: resolvedRows.length })
+      }
+
+      setBulkStatus(`${resolvedRows.length}টি রেজিস্ট্রেশন যোগ হয়েছে।`)
+      setBulkForm((prev) => ({
+        ...prev,
+        rows: '',
+      }))
+      await loadRegistrations(activeYearId, filters)
+    } catch (err) {
+      setBulkStatus(err.message || 'বাল্ক রেজিস্ট্রেশন করা যায়নি।')
     }
   }
 
@@ -289,6 +531,112 @@ function Registrations() {
             {error}
           </p>
         ) : null}
+        <div className="mt-6 border border-line bg-[var(--surface-alt)] p-4">
+          <div className="mb-3">
+            <p className="text-sm font-semibold text-ink">একসাথে একাধিক রেজিস্ট্রেশন</p>
+            <p className="mt-1 text-xs text-muted">
+              গ্রুপ, বিষয়, আর নিচে প্রতিটি লাইন এই ফরম্যাটে পেস্ট করুন: ক্রমিক, নাম, শ্রেণী, রোল।
+            </p>
+          </div>
+          <form className="grid gap-3" onSubmit={handleBulkCreate}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-2 text-sm text-muted">
+                গ্রুপ
+                <select
+                  className="h-11 border border-line bg-white px-3 text-ink"
+                  value={bulkForm.groupId}
+                  onChange={(event) =>
+                    setBulkForm((prev) => ({
+                      ...prev,
+                      groupId: event.target.value,
+                      subjectId: '',
+                    }))
+                  }
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  {groups.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-2 text-sm text-muted">
+                বিষয়
+                <select
+                  className="h-11 border border-line bg-white px-3 text-ink"
+                  value={bulkForm.subjectId}
+                  onChange={(event) =>
+                    setBulkForm((prev) => ({ ...prev, subjectId: event.target.value }))
+                  }
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  {bulkSubjectOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="grid gap-2 text-sm text-muted">
+              নাম, শ্রেণী ও রোলের তালিকা
+              <textarea
+                className="min-h-48 border border-line bg-white px-3 py-2 text-ink"
+                value={bulkForm.rows}
+                onChange={(event) =>
+                  setBulkForm((prev) => ({ ...prev, rows: event.target.value }))
+                }
+                placeholder={'১, কারিমা, ৫ম, ৩\n২, উম্মে হান্নান মাবরুরা, ৯ম, ১১\n৩, সিদরাতুল মুন্তাহা, ৯ম, ১২'}
+              />
+            </label>
+            <p className="text-xs text-muted">
+              ফরম্যাট: ক্রমিক, নাম, শ্রেণী, রোল। প্রতিটি সারি কমা দিয়ে আলাদা করুন।
+            </p>
+            {bulkPreviewRows.length > 0 ? (
+              <div className="grid gap-2 border border-line bg-white p-3 text-xs text-muted">
+                <p className="font-semibold text-ink">প্রিভিউ</p>
+                <div className="grid gap-2">
+                  {bulkPreviewRows.map((row) => (
+                    <div
+                      key={row.lineNumber}
+                      className={`grid gap-1 border px-3 py-2 ${
+                        row.errors.length > 0
+                          ? 'border-red-300 bg-red-50'
+                          : 'border-line bg-[var(--surface-alt)]'
+                      }`}
+                    >
+                      <p className="text-ink">
+                        লাইন {row.lineNumber}: {row.serialNumber || '—'} | {row.studentName || '—'} |{' '}
+                        {row.classLabel || '—'} | {row.rollNumber || '—'}
+                      </p>
+                      {row.errors.length > 0 ? (
+                        <p className="text-red-700">সমস্যা: {row.errors.join(', ')}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <button
+              type="submit"
+              className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+              disabled={!activeYearId}
+            >
+              একসাথে যোগ করুন
+            </button>
+          </form>
+          {bulkStatus ? (
+            <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
+              {bulkStatus}
+            </p>
+          ) : null}
+          {bulkProgress.total > 0 ? (
+            <p className="mt-2 text-xs text-muted">
+              অগ্রগতি: {bulkProgress.done}/{bulkProgress.total}
+            </p>
+          ) : null}
+        </div>
       </SectionCard>
 
       <SectionCard title="রেজিস্ট্রেশন তালিকা" subtitle="ফিল্টার ও সম্পাদনা">

@@ -70,6 +70,26 @@ a {
   background: var(--surface);
 }
 
+.marksheet-table-scroll {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.extra-list {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  overflow: hidden;
+  transition: max-height 400ms ease, opacity 300ms ease, transform 300ms ease;
+}
+
+.extra-list.is-expanded {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .table-scroll > table {
   width: 100%;
 }

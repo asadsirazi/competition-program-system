@@ -15,6 +15,7 @@ import Registrations from '../views/admin/Registrations.jsx'
 import Marksheets from '../views/admin/Marksheets.jsx'
 import MarksEntry from '../views/admin/MarksEntry.jsx'
 import ResultsAdmin from '../views/admin/ResultsAdmin.jsx'
+import Assignments from '../views/admin/Assignments.jsx'
 
 const routes = [
   {
@@ -112,6 +113,14 @@ const routes = [
         element: (
           <ProtectedRoute>
             <ResultsAdmin />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'assignments',
+        element: (
+          <ProtectedRoute>
+            <Assignments />
           </ProtectedRoute>
         ),
       },

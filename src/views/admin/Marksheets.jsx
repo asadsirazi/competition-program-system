@@ -278,7 +278,7 @@ function Marksheets() {
       <div className="px-3 text-[11px] font-semibold text-black">
         <p className="text-left">বিচারক :</p>
       </div>
-      <div className="table-scroll mt-1 flex-1 px-3 pb-2">
+      <div className="marksheet-table-scroll table-scroll mt-1 flex-1 px-3 pb-2">
         <table className="w-full table-fixed border-collapse text-[10px]">
           <thead>
             <tr className="border border-line bg-white">
@@ -396,7 +396,11 @@ function Marksheets() {
         ) : null}
       </SectionCard>
 
-      <SectionCard title="মার্কশিট তালিকা" subtitle="৩ জন বিচারকের কলাম">
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xs uppercase text-ink">মার্কশিট তালিকা</h2>
+          <p className="mt-1 text-sm text-muted">৩ জন বিচারকের কলাম</p>
+        </div>
         {status === 'loading' ? (
           <p className="text-sm text-muted">লোড হচ্ছে...</p>
         ) : null}
@@ -411,7 +415,7 @@ function Marksheets() {
             {sheetCopies.map((copyNumber) => renderSheet(copyNumber))}
           </div>
         ) : null}
-      </SectionCard>
+      </section>
     </div>
   )
 }

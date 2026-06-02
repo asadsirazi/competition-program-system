@@ -1,8 +1,11 @@
+const maxTotal = 99
+
 export function scoreRegistration(item) {
   const judge1 = Number(item.judge1 ?? 0)
   const judge2 = Number(item.judge2 ?? 0)
   const judge3 = Number(item.judge3 ?? 0)
   const total = Number(item.total ?? judge1 + judge2 + judge3)
+  const percentage = Number(((total / maxTotal) * 100).toFixed(2))
 
   return {
     ...item,
@@ -10,6 +13,7 @@ export function scoreRegistration(item) {
     judge2,
     judge3,
     total,
+    percentage,
   }
 }
 
