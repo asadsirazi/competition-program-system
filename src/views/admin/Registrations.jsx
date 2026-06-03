@@ -215,6 +215,7 @@ function Registrations() {
   const [bulkForm, setBulkForm] = useState(emptyBulkForm)
   const [bulkStatus, setBulkStatus] = useState('')
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 })
+  const [showRegForms, setShowRegForms] = useState(false)
 
   const groupMap = useMemo(
     () => Object.fromEntries(groups.map((item) => [item.id, item.name])),
@@ -435,208 +436,221 @@ function Registrations() {
         <div className="mb-4 text-xs text-muted">
           সক্রিয় বছর: {activeYearId || 'নির্ধারিত নয়'}
         </div>
-        <form className="grid gap-3" onSubmit={handleCreate}>
-          <div className="grid gap-3 md:grid-cols-3">
-            <label className="grid gap-2 text-sm text-muted">
-              গ্রুপ
-              <select
-                className="h-11 border border-line bg-white px-3 text-ink"
-                value={form.groupId}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    groupId: event.target.value,
-                    subjectId: '',
-                  }))
-                }
-              >
-                <option value="">নির্বাচন করুন</option>
-                {groups.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-2 text-sm text-muted">
-              বিষয়
-              <select
-                className="h-11 border border-line bg-white px-3 text-ink"
-                value={form.subjectId}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, subjectId: event.target.value }))
-                }
-              >
-                <option value="">নির্বাচন করুন</option>
-                {formSubjectOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-2 text-sm text-muted">
-              শ্রেণি
-              <select
-                className="h-11 border border-line bg-white px-3 text-ink"
-                value={form.classId}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, classId: event.target.value }))
-                }
-              >
-                <option value="">নির্বাচন করুন</option>
-                {sortedClasses.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-2 text-sm text-muted">
-              শিক্ষার্থীর নাম
-              <input
-                className="h-11 border border-line bg-white px-3 text-ink"
-                value={form.studentName}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, studentName: event.target.value }))
-                }
-                placeholder="শিক্ষার্থীর নাম"
-              />
-            </label>
-            <label className="grid gap-2 text-sm text-muted">
-              রোল নম্বর
-              <input
-                className="h-11 border border-line bg-white px-3 text-ink"
-                value={form.rollNumber}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, rollNumber: event.target.value }))
-                }
-                placeholder="১"
-                inputMode="numeric"
-              />
-            </label>
-          </div>
-          <button
-            type="submit"
-            className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
-            disabled={!activeYearId}
-          >
-            যোগ করুন
-          </button>
-        </form>
-        {error ? (
-          <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
-            {error}
-          </p>
-        ) : null}
-        <div className="mt-6 border border-line bg-[var(--surface-alt)] p-4">
-          <div className="mb-3">
-            <p className="text-sm font-semibold text-ink">একসাথে একাধিক রেজিস্ট্রেশন</p>
-            <p className="mt-1 text-xs text-muted">
-              গ্রুপ, বিষয়, আর নিচে প্রতিটি লাইন এই ফরম্যাটে পেস্ট করুন: ক্রমিক, নাম, শ্রেণী, রোল।
-            </p>
-          </div>
-          <form className="grid gap-3" onSubmit={handleBulkCreate}>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-muted">
-                গ্রুপ
-                <select
-                  className="h-11 border border-line bg-white px-3 text-ink"
-                  value={bulkForm.groupId}
-                  onChange={(event) =>
-                    setBulkForm((prev) => ({
-                      ...prev,
-                      groupId: event.target.value,
-                      subjectId: '',
-                    }))
-                  }
-                >
-                  <option value="">নির্বাচন করুন</option>
-                  {groups.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm text-muted">
-                বিষয়
-                <select
-                  className="h-11 border border-line bg-white px-3 text-ink"
-                  value={bulkForm.subjectId}
-                  onChange={(event) =>
-                    setBulkForm((prev) => ({ ...prev, subjectId: event.target.value }))
-                  }
-                >
-                  <option value="">নির্বাচন করুন</option>
-                  {bulkSubjectOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <label className="grid gap-2 text-sm text-muted">
-              নাম, শ্রেণী ও রোলের তালিকা
-              <textarea
-                className="min-h-48 border border-line bg-white px-3 py-2 text-ink"
-                value={bulkForm.rows}
-                onChange={(event) =>
-                  setBulkForm((prev) => ({ ...prev, rows: event.target.value }))
-                }
-                placeholder={'১, কারিমা, ৫ম, ৩\n২, উম্মে হান্নান মাবরুরা, ৯ম, ১১\n৩, সিদরাতুল মুন্তাহা, ৯ম, ১২'}
-              />
-            </label>
-            <p className="text-xs text-muted">
-              ফরম্যাট: ক্রমিক, নাম, শ্রেণী, রোল। প্রতিটি সারি কমা দিয়ে আলাদা করুন।
-            </p>
-            {bulkPreviewRows.length > 0 ? (
-              <div className="grid gap-2 border border-line bg-white p-3 text-xs text-muted">
-                <p className="font-semibold text-ink">প্রিভিউ</p>
-                <div className="grid gap-2">
-                  {bulkPreviewRows.map((row) => (
-                    <div
-                      key={row.lineNumber}
-                      className={`grid gap-1 border px-3 py-2 ${
-                        row.errors.length > 0
-                          ? 'border-red-300 bg-red-50'
-                          : 'border-line bg-[var(--surface-alt)]'
-                      }`}
-                    >
-                      <p className="text-ink">
-                        লাইন {row.lineNumber}: {row.serialNumber || '—'} | {row.studentName || '—'} |{' '}
-                        {row.classLabel || '—'} | {row.rollNumber || '—'}
-                      </p>
-                      {row.errors.length > 0 ? (
-                        <p className="text-red-700">সমস্যা: {row.errors.join(', ')}</p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+        <button
+          type="button"
+          onClick={() => setShowRegForms((prev) => !prev)}
+          className="mb-4 flex items-center justify-between w-full border border-line bg-[var(--surface-alt)] px-4 py-3 text-sm font-semibold text-ink hover:opacity-80 transition"
+        >
+          <span>{showRegForms ? '✕ ফর্মগুলো বন্ধ করুন' : '+ নতুন প্রতিযোগী রেজিস্ট্রেশন করুন'}</span>
+          <span>{showRegForms ? '▲' : '▼'}</span>
+        </button>
+
+        {showRegForms ? (
+          <div className="animate-fadeIn grid gap-6">
+            <form className="grid gap-3" onSubmit={handleCreate}>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-2 text-sm text-muted">
+                  গ্রুপ
+                  <select
+                    className="h-11 border border-line bg-white px-3 text-ink"
+                    value={form.groupId}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        groupId: event.target.value,
+                        subjectId: '',
+                      }))
+                    }
+                  >
+                    <option value="">নির্বাচন করুন</option>
+                    {groups.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm text-muted">
+                  বিষয়
+                  <select
+                    className="h-11 border border-line bg-white px-3 text-ink"
+                    value={form.subjectId}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, subjectId: event.target.value }))
+                    }
+                  >
+                    <option value="">নির্বাচন করুন</option>
+                    {formSubjectOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm text-muted">
+                  শ্রেণি
+                  <select
+                    className="h-11 border border-line bg-white px-3 text-ink"
+                    value={form.classId}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, classId: event.target.value }))
+                    }
+                  >
+                    <option value="">নির্বাচন করুন</option>
+                    {sortedClasses.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="grid gap-2 text-sm text-muted">
+                  শিক্ষার্থীয় নাম
+                  <input
+                    className="h-11 border border-line bg-white px-3 text-ink"
+                    value={form.studentName}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, studentName: event.target.value }))
+                    }
+                    placeholder="শিক্ষার্থীর নাম"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm text-muted">
+                  রোল নম্বর
+                  <input
+                    className="h-11 border border-line bg-white px-3 text-ink"
+                    value={form.rollNumber}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, rollNumber: event.target.value }))
+                    }
+                    placeholder="১"
+                    inputMode="numeric"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+                disabled={!activeYearId}
+              >
+                যোগ করুন
+              </button>
+            </form>
+            {error ? (
+              <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
+                {error}
+              </p>
             ) : null}
-            <button
-              type="submit"
-              className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
-              disabled={!activeYearId}
-            >
-              একসাথে যোগ করুন
-            </button>
-          </form>
-          {bulkStatus ? (
-            <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
-              {bulkStatus}
-            </p>
-          ) : null}
-          {bulkProgress.total > 0 ? (
-            <p className="mt-2 text-xs text-muted">
-              অগ্রগতি: {bulkProgress.done}/{bulkProgress.total}
-            </p>
-          ) : null}
-        </div>
+            <div className="border border-line bg-[var(--surface-alt)] p-4">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-ink">একসাথে একাধিক রেজিস্ট্রেশন</p>
+                <p className="mt-1 text-xs text-muted">
+                  গ্রুপ, বিষয়, আর নিচে প্রতিটি লাইন এই ফরম্যাটে পেস্ট করুন: ক্রমিক, নাম, শ্রেণী, রোল।
+                </p>
+              </div>
+              <form className="grid gap-3" onSubmit={handleBulkCreate}>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm text-muted">
+                    গ্রুপ
+                    <select
+                      className="h-11 border border-line bg-white px-3 text-ink"
+                      value={bulkForm.groupId}
+                      onChange={(event) =>
+                        setBulkForm((prev) => ({
+                          ...prev,
+                          groupId: event.target.value,
+                          subjectId: '',
+                        }))
+                      }
+                    >
+                      <option value="">নির্বাচন করুন</option>
+                      {groups.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm text-muted">
+                    বিষয়
+                    <select
+                      className="h-11 border border-line bg-white px-3 text-ink"
+                      value={bulkForm.subjectId}
+                      onChange={(event) =>
+                        setBulkForm((prev) => ({ ...prev, subjectId: event.target.value }))
+                      }
+                    >
+                      <option value="">নির্বাচন করুন</option>
+                      {bulkSubjectOptions.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="grid gap-2 text-sm text-muted">
+                  নাম, শ্রেণী ও রোলের তালিকা
+                  <textarea
+                    className="min-h-48 border border-line bg-white px-3 py-2 text-ink"
+                    value={bulkForm.rows}
+                    onChange={(event) =>
+                      setBulkForm((prev) => ({ ...prev, rows: event.target.value }))
+                    }
+                    placeholder={'১, কারিমা, ৫ম, ৩\n২, উম্মে হান্নান মাবরুরা, ৯ম, ১১\n৩, সিদরাতুল মুন্তাহা, ৯ম, ১২'}
+                  />
+                </label>
+                <p className="text-xs text-muted">
+                  ফরম্যাট: ক্রমিক, নাম, শ্রেণী, রোল। প্রতিটি সারি কমা দিয়ে আলাদা করুন।
+                </p>
+                {bulkPreviewRows.length > 0 ? (
+                  <div className="grid gap-2 border border-line bg-white p-3 text-xs text-muted">
+                    <p className="font-semibold text-ink">প্রিভিউ</p>
+                    <div className="grid gap-2">
+                      {bulkPreviewRows.map((row) => (
+                        <div
+                          key={row.lineNumber}
+                          className={`grid gap-1 border px-3 py-2 ${
+                            row.errors.length > 0
+                              ? 'border-red-300 bg-red-50'
+                              : 'border-line bg-[var(--surface-alt)]'
+                          }`}
+                        >
+                          <p className="text-ink">
+                            লাইন {row.lineNumber}: {row.serialNumber || '—'} | {row.studentName || '—'} |{' '}
+                            {row.classLabel || '—'} | {row.rollNumber || '—'}
+                          </p>
+                          {row.errors.length > 0 ? (
+                            <p className="text-red-700">সমস্যা: {row.errors.join(', ')}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <button
+                  type="submit"
+                  className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+                  disabled={!activeYearId}
+                >
+                  একসাথে যোগ করুন
+                </button>
+              </form>
+              {bulkStatus ? (
+                <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
+                  {bulkStatus}
+                </p>
+              ) : null}
+              {bulkProgress.total > 0 ? (
+                <p className="mt-2 text-xs text-muted">
+                  অগ্রগতি: {bulkProgress.done}/{bulkProgress.total}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </SectionCard>
 
       <SectionCard title="রেজিস্ট্রেশন তালিকা" subtitle="ফিল্টার ও সম্পাদনা">

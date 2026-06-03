@@ -1,22 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import AppShell from '../components/AppShell.jsx'
 import SectionCard from '../components/SectionCard.jsx'
 import ResultsTable from '../components/ResultsTable.jsx'
 import { getSystemSettings } from '../services/systemSettings.js'
 import { getActiveYearId } from '../services/activeYear.js'
 import { getGroups } from '../services/groups.js'
-import { getClasses } from '../services/classes.js'
 import { getSubjects } from '../services/subjects.js'
 import { getRegistrations } from '../services/registrations.js'
 import { getGroupSubjectOptions } from '../utils/groupSubjects.js'
 import { rankResults } from '../utils/resultScoring.js'
+import { toPng } from 'html-to-image'
 
 const emptyFilters = { groupId: '', subjectId: '' }
 
 function PublicResults() {
+  const tableRef = useRef(null)
+  const [institutionName, setInstitutionName] = useState('আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা')
   const [activeYearId, setActiveYearId] = useState('')
   const [groups, setGroups] = useState([])
-  const [classes, setClasses] = useState([])
   const [subjects, setSubjects] = useState([])
   const [filters, setFilters] = useState(emptyFilters)
   const [items, setItems] = useState([])
@@ -30,10 +31,6 @@ function PublicResults() {
   const groupMap = useMemo(
     () => Object.fromEntries(groups.map((item) => [item.id, item.name])),
     [groups],
-  )
-  const classMap = useMemo(
-    () => Object.fromEntries(classes.map((item) => [item.id, item.name])),
-    [classes],
   )
   const subjectMap = useMemo(
     () => Object.fromEntries(subjects.map((item) => [item.id, item.name])),
@@ -54,16 +51,15 @@ function PublicResults() {
     try {
       const settings = await getSystemSettings()
       setPublished(Boolean(settings.resultsPublished))
+      setInstitutionName(settings.institutionName || 'আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা')
 
       const yearId = await getActiveYearId()
-      const [groupList, classList, subjectList] = await Promise.all([
+      const [groupList, subjectList] = await Promise.all([
         getGroups(yearId),
-        getClasses(yearId),
         getSubjects(yearId),
       ])
       setActiveYearId(yearId)
       setGroups(groupList)
-      setClasses(classList)
       setSubjects(subjectList)
       setStatus('ready')
 
@@ -73,7 +69,7 @@ function PublicResults() {
         const allList = await getRegistrations(yearId)
         setSummaryItems(allList)
         setSummaryStatus('ready')
-      } catch (err) {
+      } catch {
         setSummaryStatus('error')
       }
     } catch (err) {
@@ -83,7 +79,9 @@ function PublicResults() {
   }
 
   useEffect(() => {
-    loadReferenceData()
+    setTimeout(() => {
+      void loadReferenceData()
+    }, 0)
   }, [])
 
   const loadResults = async () => {
@@ -158,6 +156,27 @@ function PublicResults() {
       ...prev,
       [key]: !prev[key],
     }))
+  }
+
+  const downloadImage = () => {
+    if (!tableRef.current) return
+    toPng(tableRef.current, {
+      cacheBust: true,
+      pixelRatio: 3,
+      style: {
+        background: 'white',
+        margin: '0',
+      }
+    })
+    .then((dataUrl) => {
+      const link = document.createElement('a')
+      link.download = `ফলাফল_তালিকা_${selectedGroup?.name || 'গ্রুপ'}_${subjectMap[filters.subjectId] || 'বিষয়'}.png`
+      link.href = dataUrl
+      link.click()
+    })
+    .catch((err) => {
+      console.error('Image export failed:', err)
+    })
   }
 
   return (
@@ -237,12 +256,31 @@ function PublicResults() {
             <p className="text-sm text-muted">ফলাফল দেখানোর মতো তথ্য নেই।</p>
           ) : null}
           {items.length > 0 ? (
-            <div className="border border-line bg-white p-4">
-              <div className="mb-3 text-xs text-muted">
-                <p>গ্রুপ: {groupMap[filters.groupId] || 'নির্বাচন করুন'}</p>
-                <p>বিষয়: {subjectMap[filters.subjectId] || 'নির্বাচন করুন'}</p>
+            <div className="grid gap-3">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={downloadImage}
+                  className="h-10 border border-ink bg-white px-4 text-xs font-semibold text-ink hover:bg-gray-50 transition"
+                >
+                  📸 ছবি ডাউনলোড করুন
+                </button>
               </div>
-              <ResultsTable items={items} />
+              <div ref={tableRef} className="border border-line bg-white p-6">
+                <div className="mb-6 flex flex-col items-center justify-center text-center border-b border-line pb-4">
+                  <h2 className="text-xl font-bold text-ink">ফলাফল তালিকা</h2>
+                  <p className="mt-1 text-sm text-muted">
+                    ইসলামিক সংস্কৃতি প্রতিযোগিতা - {activeYearId || 'তথ্যাদি'}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-ink">
+                    {institutionName}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    গ্রুপ : {groupMap[filters.groupId] || 'গ্রুপ'}, বিষয় : {subjectMap[filters.subjectId] || 'বিষয়'}
+                  </p>
+                </div>
+                <ResultsTable items={items} />
+              </div>
             </div>
           ) : null}
         </SectionCard>

@@ -39,26 +39,69 @@ a {
 @media print {
   @page {
     size: A4 landscape;
-    margin: 0;
+    margin: 0 !important;
   }
 
-  .print-hidden {
-    display: none !important;
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
+  /* Hide everything */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Reveal only print-area and its descendants */
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  /* Position print-area perfectly at top-left */
   .print-area {
-    box-shadow: none !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 11.69in !important;
+    height: 8.27in !important;
+    margin: 0 !important;
     padding: 0.14in !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 0.14in !important;
   }
 
   .marksheet-sheet {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    height: 7.99in;
-    overflow: hidden;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    height: 7.99in !important;
+    max-height: 7.99in !important;
+    border: 1px solid #1b1b1b !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Force borders to render inside sheet and tables */
+  table, th, td {
+    border: 1px solid #1b1b1b !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #1b1b1b !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 
@@ -120,4 +163,22 @@ a {
   h3 {
     @apply text-ink;
   }
+}
+
+@keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.aurora-glow {
+  background: linear-gradient(135deg, #ff7eb3, #ff758c, #ac73ff, #00e5ff, #86f3b8);
+  background-size: 300% 300%;
+  animation: aurora 8s ease infinite;
 }

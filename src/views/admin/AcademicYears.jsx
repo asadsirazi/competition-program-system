@@ -17,6 +17,7 @@ function AcademicYears() {
   const [cloneMessage, setCloneMessage] = useState('')
   const [cloneStatus, setCloneStatus] = useState('idle')
   const [cloneLogs, setCloneLogs] = useState([])
+  const [formOpen, setFormOpen] = useState(false)
 
   const loadYears = async () => {
     setStatus('loading')
@@ -113,24 +114,35 @@ function AcademicYears() {
             {cloneMessage}
           </p>
         ) : null}
-        <form className="grid gap-3 lg:grid-cols-[1fr_auto]" onSubmit={handleCreate}>
-          <label className="grid gap-2 text-sm text-muted">
-            নতুন একাডেমিক বছর
-            <input
-              className="h-11 border border-line bg-white px-3 text-ink"
-              value={newYear}
-              onChange={(event) => setNewYear(event.target.value)}
-              placeholder="2026"
-              inputMode="numeric"
-            />
-          </label>
-          <button
-            type="submit"
-            className="mt-auto h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
-          >
-            যোগ করুন
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={() => setFormOpen((prev) => !prev)}
+          className="mb-4 flex items-center justify-between w-full border border-line bg-[var(--surface-alt)] px-4 py-3 text-sm font-semibold text-ink hover:opacity-80 transition"
+        >
+          <span>{formOpen ? '✕ ফর্মটি বন্ধ করুন' : '+ নতুন একাডেমিক বছর তৈরি করুন'}</span>
+          <span>{formOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {formOpen ? (
+          <form className="grid gap-3 lg:grid-cols-[1fr_auto] animate-fadeIn mb-4" onSubmit={handleCreate}>
+            <label className="grid gap-2 text-sm text-muted">
+              নতুন একাডেমিক বছর
+              <input
+                className="h-11 border border-line bg-white px-3 text-ink"
+                value={newYear}
+                onChange={(event) => setNewYear(event.target.value)}
+                placeholder="2026"
+                inputMode="numeric"
+              />
+            </label>
+            <button
+              type="submit"
+              className="mt-auto h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+            >
+              যোগ করুন
+            </button>
+          </form>
+        ) : null}
         {actionMessage ? (
           <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
             {actionMessage}

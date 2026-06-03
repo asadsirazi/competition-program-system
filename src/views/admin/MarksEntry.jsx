@@ -56,50 +56,6 @@ function MarksEntry() {
     [selectedSubject?.name],
   )
 
-  useEffect(() => {
-    const loadReferenceData = async () => {
-      setStatus('loading')
-      setError('')
-      try {
-        const yearId = await getActiveYearId()
-        const [groupList, classList, subjectList] = await Promise.all([
-          getGroups(yearId),
-          getClasses(yearId),
-          getSubjects(yearId),
-        ])
-        setActiveYearId(yearId)
-        setGroups(groupList)
-        setClasses(classList)
-        setSubjects(subjectList)
-        setStatus('ready')
-      } catch (err) {
-        setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
-        setStatus('error')
-      }
-    }
-
-    void loadReferenceData()
-  }, [])
-
-  useEffect(() => {
-    itemsRef.current = items
-  }, [items])
-
-  useEffect(() => {
-    if (!activeYearId) {
-      return
-    }
-    void loadTracking()
-  }, [activeYearId])
-
-  useEffect(() => {
-    setDirtyIds([])
-    setBulkStatus('')
-    setSavingId('')
-    setSavingAll(false)
-    setBulkProgress({ done: 0, total: 0 })
-  }, [activeYearId, filters.groupId, filters.subjectId])
-
   const loadMarks = async () => {
     if (!activeYearId) {
       return
@@ -138,6 +94,57 @@ function MarksEntry() {
       setTrackingStatus('error')
     }
   }
+
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      setStatus('loading')
+      setError('')
+      try {
+        const yearId = await getActiveYearId()
+        const [groupList, classList, subjectList] = await Promise.all([
+          getGroups(yearId),
+          getClasses(yearId),
+          getSubjects(yearId),
+        ])
+        setActiveYearId(yearId)
+        setGroups(groupList)
+        setClasses(classList)
+        setSubjects(subjectList)
+        setStatus('ready')
+      } catch (err) {
+        setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
+        setStatus('error')
+      }
+    }
+
+    setTimeout(() => {
+      void loadReferenceData()
+    }, 0)
+  }, [])
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+
+  useEffect(() => {
+    if (!activeYearId) {
+      return
+    }
+    setTimeout(() => {
+      void loadTracking()
+    }, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeYearId])
+
+  useEffect(() => {
+    setTimeout(() => {
+      setDirtyIds([])
+      setBulkStatus('')
+      setSavingId('')
+      setSavingAll(false)
+      setBulkProgress({ done: 0, total: 0 })
+    }, 0)
+  }, [activeYearId, filters.groupId, filters.subjectId])
 
   const updateMark = (id, field, value) => {
     setItems((prev) =>
@@ -347,57 +354,6 @@ function MarksEntry() {
         ) : null}
       </SectionCard>
 
-      <SectionCard title="মার্কস এন্ট্রি ট্র্যাকিং" subtitle="গ্রুপ ও বিষয় অনুযায়ী অগ্রগতি">
-        {trackingStatus === 'loading' ? (
-          <p className="text-sm text-muted">ট্র্যাকিং লোড হচ্ছে...</p>
-        ) : null}
-        {trackingStatus === 'error' ? (
-          <p className="text-sm text-muted">{trackingError}</p>
-        ) : null}
-        {trackingStatus === 'ready' ? (
-          <div className="grid gap-4">
-            {groups.length === 0 ? (
-              <p className="text-sm text-muted">গ্রুপ পাওয়া যায়নি।</p>
-            ) : (
-              groups.map((group) => {
-                const subjectList = subjectNamesForGroup(group)
-                return (
-                  <div key={group.id} className="border border-line bg-white px-4 py-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-ink">{group.name}</p>
-                      <span className="text-xs text-muted">বিষয়: {subjectList.length}টি</span>
-                    </div>
-                    {subjectList.length === 0 ? (
-                      <p className="mt-3 text-sm text-muted">এই গ্রুপে কোনো বিষয় নেই।</p>
-                    ) : (
-                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                        {subjectList.map((subject) => {
-                          const list = registrationsByGroup[group.id]?.[subject.id] || []
-                          const statusInfo = getEntryStatus(list)
-                          return (
-                            <div key={subject.id} className="border border-line px-3 py-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-semibold text-ink">{subject.name}</p>
-                                <span className={`text-xs font-semibold ${statusInfo.tone}`}>
-                                  {statusInfo.label}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-xs text-muted">
-                                এন্ট্রি: {statusInfo.done}/{statusInfo.total}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
-          </div>
-        ) : null}
-      </SectionCard>
-
       <SectionCard title="মার্কস তালিকা" subtitle="প্রতি শিক্ষার্থীর নম্বর">
         {status === 'loading' ? (
           <p className="text-sm text-muted">লোড হচ্ছে...</p>
@@ -438,10 +394,10 @@ function MarksEntry() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item, index) => (
                     <tr key={item.id} className="border border-line">
                         <td className="border border-line px-3 py-2 text-center">
-                          {item.serialNumber ?? '-'}
+                          {index + 1}
                       </td>
                         <td className="border border-line px-3 py-2">
                           {item.studentName}
@@ -451,7 +407,7 @@ function MarksEntry() {
                       </td>
                       <td className="border border-line px-2 py-2">
                         <input
-                          className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
+                           className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
                           type="number"
                           min="0"
                           max="33"
@@ -465,7 +421,7 @@ function MarksEntry() {
                       </td>
                       <td className="border border-line px-2 py-2">
                         <input
-                          className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
+                           className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
                           type="number"
                           min="0"
                           max="33"
@@ -479,7 +435,7 @@ function MarksEntry() {
                       </td>
                       <td className="border border-line px-2 py-2">
                         <input
-                          className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
+                           className="h-9 w-20 border border-line bg-white px-2 text-center text-ink"
                           type="number"
                           min="0"
                           max="33"
@@ -523,6 +479,57 @@ function MarksEntry() {
                   : 'সব সংরক্ষণ করুন'}
               </button>
             </div>
+          </div>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard title="মার্কস এন্ট্রি ট্র্যাকিং" subtitle="গ্রুপ ও বিষয় অনুযায়ী অগ্রগতি">
+        {trackingStatus === 'loading' ? (
+          <p className="text-sm text-muted">ট্র্যাকিং লোড হচ্ছে...</p>
+        ) : null}
+        {trackingStatus === 'error' ? (
+          <p className="text-sm text-muted">{trackingError}</p>
+        ) : null}
+        {trackingStatus === 'ready' ? (
+          <div className="grid gap-4">
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted">গ্রুপ পাওয়া যায়নি।</p>
+            ) : (
+              groups.map((group) => {
+                const subjectList = subjectNamesForGroup(group)
+                return (
+                  <div key={group.id} className="border border-line bg-white px-4 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink">{group.name}</p>
+                      <span className="text-xs text-muted">বিষয়: {subjectList.length}টি</span>
+                    </div>
+                    {subjectList.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted">এই গ্রুপে কোনো বিষয় নেই।</p>
+                    ) : (
+                      <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                        {subjectList.map((subject) => {
+                          const list = registrationsByGroup[group.id]?.[subject.id] || []
+                          const statusInfo = getEntryStatus(list)
+                          return (
+                            <div key={subject.id} className="border border-line p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[12px] font-semibold text-ink">{subject.name}</p>
+                                <span className={`text-[10px] font-semibold ${statusInfo.tone}`}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+                              <p className="mt-1.5 text-[10px] text-muted">
+                                এন্ট্রি: {statusInfo.done}/{statusInfo.total}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         ) : null}
       </SectionCard>

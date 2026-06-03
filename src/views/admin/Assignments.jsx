@@ -8,21 +8,13 @@ import { getTeachers } from '../../services/teachers.js'
 import { getSystemSettings, updateSystemSettings } from '../../services/systemSettings.js'
 
 const emptyPerson = { name: '', title: '', photoUrl: '' }
-const emptyLeadership = {
-  founder: { ...emptyPerson },
-  principal: { ...emptyPerson },
-  educationDirector: { ...emptyPerson },
-  culturalLead: { ...emptyPerson },
-  culturalAssistant: { ...emptyPerson },
-}
 
 const emptyAssignment = {
   noticeHtml: '',
-  committee: Array.from({ length: 5 }, () => ({ ...emptyPerson })),
-  leadership: { ...emptyLeadership },
+  committee: [],
   groupLeads: [],
-  subjectLeads: Array.from({ length: 2 }, () => ({ subjectId: '', ...emptyPerson })),
-  classLeads: Array.from({ length: 2 }, () => ({ classId: '', ...emptyPerson })),
+  subjectLeads: [],
+  classLeads: [],
 }
 
 function normalizePerson(person = {}) {
@@ -34,44 +26,71 @@ function normalizePerson(person = {}) {
 }
 
 function normalizeCommittee(committee = []) {
-  return Array.from({ length: 5 }, (_, index) => normalizePerson(committee[index]))
-}
-
-function normalizeLeadership(leadership = {}) {
-  return {
-    founder: normalizePerson(leadership.founder),
-    principal: normalizePerson(leadership.principal),
-    educationDirector: normalizePerson(leadership.educationDirector),
-    culturalLead: normalizePerson(leadership.culturalLead),
-    culturalAssistant: normalizePerson(leadership.culturalAssistant),
+  if (!Array.isArray(committee)) {
+    return []
   }
+  return committee.map((item) => ({
+    name: item.name || '',
+    title: item.title || '',
+    title2: item.title2 || '',
+    photoUrl: item.photoUrl || '',
+  }))
 }
 
 function normalizeSubjectLeads(subjectLeads = []) {
-  return Array.from({ length: 2 }, (_, index) => ({
-    subjectId: subjectLeads[index]?.subjectId || '',
-    ...normalizePerson(subjectLeads[index]),
+  if (!Array.isArray(subjectLeads)) {
+    return []
+  }
+  return subjectLeads.map((item) => ({
+    subjectId: item?.subjectId || '',
+    ...normalizePerson(item),
   }))
 }
 
 function normalizeClassLeads(classLeads = []) {
-  return Array.from({ length: 2 }, (_, index) => ({
-    classId: classLeads[index]?.classId || '',
-    ...normalizePerson(classLeads[index]),
+  if (!Array.isArray(classLeads)) {
+    return []
+  }
+  return classLeads.map((item) => ({
+    classId: item?.classId || '',
+    ...normalizePerson(item),
   }))
 }
 
 function normalizeGroupLeads(groups = [], groupLeads = []) {
   return groups.map((group) => {
     const saved = groupLeads.find((item) => item.groupId === group.id) || {}
+    
+    let lead = { name: '', title: '', photoUrl: '' }
+    let assistants = []
+
+    // Backward compatibility check for old format flat fields
+    if (saved.leadName || saved.leadTitle || saved.leadPhotoUrl) {
+      lead = {
+        name: saved.leadName || '',
+        title: saved.leadTitle || '',
+        photoUrl: saved.leadPhotoUrl || '',
+      }
+    } else if (saved.lead) {
+      lead = normalizePerson(saved.lead)
+    }
+
+    if (Array.isArray(saved.assistants)) {
+      assistants = saved.assistants.map(normalizePerson)
+    } else if (saved.assistantName || saved.assistantTitle || saved.assistantPhotoUrl) {
+      assistants = [
+        {
+          name: saved.assistantName || '',
+          title: saved.assistantTitle || '',
+          photoUrl: saved.assistantPhotoUrl || '',
+        },
+      ]
+    }
+
     return {
       groupId: group.id,
-      leadName: saved.leadName || '',
-      leadTitle: saved.leadTitle || '',
-      leadPhotoUrl: saved.leadPhotoUrl || '',
-      assistantName: saved.assistantName || '',
-      assistantTitle: saved.assistantTitle || '',
-      assistantPhotoUrl: saved.assistantPhotoUrl || '',
+      lead,
+      assistants,
     }
   })
 }
@@ -80,7 +99,6 @@ function buildAssignment(base = {}, groups = []) {
   return {
     noticeHtml: base.noticeHtml || base.notice || '',
     committee: normalizeCommittee(base.committee),
-    leadership: normalizeLeadership(base.leadership),
     groupLeads: normalizeGroupLeads(groups, base.groupLeads || []),
     subjectLeads: normalizeSubjectLeads(base.subjectLeads),
     classLeads: normalizeClassLeads(base.classLeads),
@@ -202,21 +220,67 @@ function Assignments() {
     })
   }
 
-  const updateLeadership = (role, field, value) => {
+  const addCommitteeMember = () => {
     setForm((prev) => ({
       ...prev,
-      leadership: {
-        ...prev.leadership,
-        [role]: { ...prev.leadership[role], [field]: value },
-      },
+      committee: [...prev.committee, { name: '', title: '', title2: '', photoUrl: '' }],
     }))
   }
 
-  const updateGroupLead = (groupId, field, value) => {
+  const removeCommitteeMember = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      committee: prev.committee.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const updateGroupLeadMain = (groupId, field, value) => {
     setForm((prev) => ({
       ...prev,
       groupLeads: prev.groupLeads.map((item) =>
-        item.groupId === groupId ? { ...item, [field]: value } : item,
+        item.groupId === groupId
+          ? { ...item, lead: { ...item.lead, [field]: value } }
+          : item,
+      ),
+    }))
+  }
+
+  const updateGroupLeadAssistant = (groupId, assistantIndex, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      groupLeads: prev.groupLeads.map((item) => {
+        if (item.groupId !== groupId) return item
+        const nextAssistants = [...item.assistants]
+        nextAssistants[assistantIndex] = {
+          ...nextAssistants[assistantIndex],
+          [field]: value,
+        }
+        return { ...item, assistants: nextAssistants }
+      }),
+    }))
+  }
+
+  const addGroupLeadAssistant = (groupId) => {
+    setForm((prev) => ({
+      ...prev,
+      groupLeads: prev.groupLeads.map((item) =>
+        item.groupId === groupId
+          ? { ...item, assistants: [...item.assistants, { ...emptyPerson }] }
+          : item,
+      ),
+    }))
+  }
+
+  const removeGroupLeadAssistant = (groupId, assistantIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      groupLeads: prev.groupLeads.map((item) =>
+        item.groupId === groupId
+          ? {
+              ...item,
+              assistants: item.assistants.filter((_, idx) => idx !== assistantIndex),
+            }
+          : item,
       ),
     }))
   }
@@ -229,6 +293,20 @@ function Assignments() {
     })
   }
 
+  const addSubjectLead = () => {
+    setForm((prev) => ({
+      ...prev,
+      subjectLeads: [...prev.subjectLeads, { subjectId: '', ...emptyPerson }],
+    }))
+  }
+
+  const removeSubjectLead = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      subjectLeads: prev.subjectLeads.filter((_, idx) => idx !== index),
+    }))
+  }
+
   const updateClassLead = (index, field, value) => {
     setForm((prev) => {
       const next = [...prev.classLeads]
@@ -237,6 +315,36 @@ function Assignments() {
     })
   }
 
+  const addClassLead = () => {
+    setForm((prev) => ({
+      ...prev,
+      classLeads: [...prev.classLeads, { classId: '', ...emptyPerson }],
+    }))
+  }
+
+  const removeClassLead = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      classLeads: prev.classLeads.filter((_, idx) => idx !== index),
+    }))
+  }
+
+  const handleTeacherNameChange = (name, onMatch) => {
+    const matchedTeacher = teachers.find(
+      (t) => t.name?.trim().toLowerCase() === name?.trim().toLowerCase(),
+    )
+    if (matchedTeacher) {
+      const formattedTitle = matchedTeacher.designation
+        ? `${matchedTeacher.designation}, আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা`
+        : 'আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা'
+      onMatch({
+        title: formattedTitle,
+        photoUrl: matchedTeacher.photoUrl || '',
+      })
+    }
+  }
+
+
   const applyEditorCommand = (command, value) => {
     if (!editorRef.current) {
       return
@@ -244,7 +352,7 @@ function Assignments() {
     editorRef.current.focus()
     try {
       document.execCommand(command, false, value)
-    } catch (err) {
+    } catch {
       setError('এডিটর কমান্ড চালানো যায়নি।')
     }
     setForm((prev) => ({
@@ -420,26 +528,57 @@ function Assignments() {
             </datalist>
 
             <div className="grid gap-4">
-              <div>
-                <p className="text-xs uppercase text-muted">প্রতিযোগিতা পরিচালনা পর্ষদ (৫ জন)</p>
-                <p className="mt-1 text-sm text-ink">নাম, পদবী ও ছবি URL দিন।</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase text-muted">প্রতিযোগিতা পরিচালনা পর্ষদ</p>
+                  <p className="mt-1 text-sm text-ink">নাম, পদবী ও ছবি URL দিন।</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addCommitteeMember}
+                  className="h-9 border border-ink bg-white px-3 text-xs font-semibold text-ink hover:bg-ink hover:text-white transition"
+                >
+                  + সদস্য যোগ করুন
+                </button>
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 {form.committee.map((member, index) => (
-                  <div key={`committee-${index}`} className="grid gap-2 border border-line bg-white p-4">
-                    <p className="text-xs uppercase text-muted">সদস্য {index + 1}</p>
+                  <div key={`committee-${index}`} className="grid gap-2 border border-line bg-white p-4 relative">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase text-muted">সদস্য {index + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeCommitteeMember(index)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        মুছে ফেলুন
+                      </button>
+                    </div>
                     <input
                       className="h-10 border border-line bg-white px-3 text-ink"
                       placeholder="নাম"
                       list="teacher-name-options"
                       value={member.name}
-                      onChange={(event) => updateCommittee(index, 'name', event.target.value)}
+                      onChange={(event) => {
+                        const val = event.target.value
+                        updateCommittee(index, 'name', val)
+                        handleTeacherNameChange(val, (matched) => {
+                          updateCommittee(index, 'title', matched.title)
+                          updateCommittee(index, 'photoUrl', matched.photoUrl)
+                        })
+                      }}
                     />
                     <input
                       className="h-10 border border-line bg-white px-3 text-ink"
                       placeholder="পদবী"
                       value={member.title}
                       onChange={(event) => updateCommittee(index, 'title', event.target.value)}
+                    />
+                    <input
+                      className="h-10 border border-line bg-white px-3 text-ink"
+                      placeholder="পদবী"
+                      value={member.title2 || ''}
+                      onChange={(event) => updateCommittee(index, 'title2', event.target.value)}
                     />
                     <input
                       className="h-10 border border-line bg-white px-3 text-ink"
@@ -454,47 +593,8 @@ function Assignments() {
 
             <div className="grid gap-4">
               <div>
-                <p className="text-xs uppercase text-muted">প্রতিষ্ঠান ও ফোরাম নেতৃত্ব</p>
-                <p className="mt-1 text-sm text-ink">নাম, পদবী ও ছবি URL দিন।</p>
-              </div>
-              <div className="grid gap-3 lg:grid-cols-2">
-                {[
-                  { key: 'founder', label: 'প্রতিষ্ঠাতা ও পৃষ্ঠপোষক' },
-                  { key: 'principal', label: 'অধ্যক্ষ' },
-                  { key: 'educationDirector', label: 'শিক্ষা পরিচালক' },
-                  { key: 'culturalLead', label: 'সাংস্কৃতিক ফোরামের প্রধান দায়িত্বশীল' },
-                  { key: 'culturalAssistant', label: 'সাংস্কৃতিক ফোরামের সহকারী দায়িত্বশীল' },
-                ].map((role) => (
-                  <div key={role.key} className="grid gap-2 border border-line bg-white p-4">
-                    <p className="text-xs uppercase text-muted">{role.label}</p>
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      placeholder="নাম"
-                      list="teacher-name-options"
-                      value={form.leadership[role.key].name}
-                      onChange={(event) => updateLeadership(role.key, 'name', event.target.value)}
-                    />
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      placeholder="পদবী"
-                      value={form.leadership[role.key].title}
-                      onChange={(event) => updateLeadership(role.key, 'title', event.target.value)}
-                    />
-                    <input
-                      className="h-10 border border-line bg-white px-3 text-ink"
-                      placeholder="ছবির লিংক"
-                      value={form.leadership[role.key].photoUrl}
-                      onChange={(event) => updateLeadership(role.key, 'photoUrl', event.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div>
                 <p className="text-xs uppercase text-muted">গ্রুপ দায়িত্বশীল</p>
-                <p className="mt-1 text-sm text-ink">প্রতি গ্রুপে প্রধান ও সহকারী দায়িত্বশীল দিন।</p>
+                <p className="mt-1 text-sm text-ink">প্রতি গ্রুপে একজন প্রধান এবং ইচ্ছামতো সহকারী দায়িত্বশীল যোগ করতে পারবেন।</p>
               </div>
               <div className="grid gap-4">
                 {groupOptions.length === 0 ? (
@@ -504,52 +604,93 @@ function Assignments() {
                     const groupName = groupOptions.find((item) => item.id === lead.groupId)?.name || 'গ্রুপ'
                     return (
                       <div key={lead.groupId} className="grid gap-3 border border-line bg-white p-4">
-                        <p className="text-sm font-semibold text-ink">{groupName}</p>
-                        <div className="grid gap-3 lg:grid-cols-2">
-                          <div className="grid gap-2">
-                            <p className="text-xs uppercase text-muted">প্রধান দায়িত্বশীল</p>
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="নাম"
-                              list="teacher-name-options"
-                              value={lead.leadName}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'leadName', event.target.value)}
-                            />
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="পদবী"
-                              value={lead.leadTitle}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'leadTitle', event.target.value)}
-                            />
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="ছবির লিংক"
-                              value={lead.leadPhotoUrl}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'leadPhotoUrl', event.target.value)}
-                            />
+                        <div className="flex items-center justify-between border-b border-line pb-2">
+                          <p className="text-sm font-semibold text-ink">{groupName}</p>
+                          <button
+                            type="button"
+                            onClick={() => addGroupLeadAssistant(lead.groupId)}
+                            className="h-8 border border-ink bg-white px-3 text-xs font-semibold text-ink hover:bg-ink hover:text-white transition"
+                          >
+                            + সহকারী যোগ করুন
+                          </button>
+                        </div>
+                        <div className="grid gap-4 mt-2">
+                          {/* Main Lead */}
+                          <div className="grid gap-2 border border-[var(--line-alt)] p-3 bg-[var(--surface-alt)]">
+                            <p className="text-xs font-semibold uppercase text-ink">প্রধান দায়িত্বশীল</p>
+                            <div className="grid gap-2 md:grid-cols-3">
+                              <input
+                                className="h-10 border border-line bg-white px-3 text-ink"
+                                placeholder="নাম"
+                                list="teacher-name-options"
+                                value={lead.lead.name}
+                                onChange={(event) => {
+                                  const val = event.target.value
+                                  updateGroupLeadMain(lead.groupId, 'name', val)
+                                  handleTeacherNameChange(val, (matched) => {
+                                    updateGroupLeadMain(lead.groupId, 'leadTitle', matched.title)
+                                    updateGroupLeadMain(lead.groupId, 'leadPhotoUrl', matched.photoUrl)
+                                  })
+                                }}
+                              />
+                              <input
+                                className="h-10 border border-line bg-white px-3 text-ink"
+                                placeholder="পদবী"
+                                value={lead.lead.title}
+                                onChange={(event) => updateGroupLeadMain(lead.groupId, 'title', event.target.value)}
+                              />
+                              <input
+                                className="h-10 border border-line bg-white px-3 text-ink"
+                                placeholder="ছবির লিংক"
+                                value={lead.lead.photoUrl}
+                                onChange={(event) => updateGroupLeadMain(lead.groupId, 'photoUrl', event.target.value)}
+                              />
+                            </div>
                           </div>
-                          <div className="grid gap-2">
-                            <p className="text-xs uppercase text-muted">সহকারী দায়িত্বশীল</p>
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="নাম"
-                              list="teacher-name-options"
-                              value={lead.assistantName}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'assistantName', event.target.value)}
-                            />
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="পদবী"
-                              value={lead.assistantTitle}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'assistantTitle', event.target.value)}
-                            />
-                            <input
-                              className="h-10 border border-line bg-white px-3 text-ink"
-                              placeholder="ছবির লিংক"
-                              value={lead.assistantPhotoUrl}
-                              onChange={(event) => updateGroupLead(lead.groupId, 'assistantPhotoUrl', event.target.value)}
-                            />
-                          </div>
+
+                          {/* Assistants */}
+                          {lead.assistants.map((assistant, index) => (
+                            <div key={`assistant-${index}`} className="grid gap-2 border border-line p-3 relative bg-white">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold uppercase text-muted">সহকারী দায়িত্বশীল {index + 1}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => removeGroupLeadAssistant(lead.groupId, index)}
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  মুছে ফেলুন
+                                </button>
+                              </div>
+                              <div className="grid gap-2 md:grid-cols-3">
+                                <input
+                                  className="h-10 border border-line bg-white px-3 text-ink"
+                                  placeholder="নাম"
+                                  list="teacher-name-options"
+                                  value={assistant.name}
+                                  onChange={(event) => {
+                                    const val = event.target.value
+                                    updateGroupLeadAssistant(lead.groupId, index, 'name', val)
+                                    handleTeacherNameChange(val, (matched) => {
+                                      updateGroupLeadAssistant(lead.groupId, index, 'title', matched.title)
+                                      updateGroupLeadAssistant(lead.groupId, index, 'photoUrl', matched.photoUrl)
+                                    })
+                                  }}
+                                />
+                                <input
+                                  className="h-10 border border-line bg-white px-3 text-ink"
+                                  placeholder="পদবী"
+                                  value={assistant.title}
+                                  onChange={(event) => updateGroupLeadAssistant(lead.groupId, index, 'title', event.target.value)}
+                                />
+                                <input
+                                  className="h-10 border border-line bg-white px-3 text-ink"
+                                  placeholder="ছবির লিংক"
+                                  value={assistant.photoUrl}
+                                  onChange={(event) => updateGroupLeadAssistant(lead.groupId, index, 'photoUrl', event.target.value)}
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )
@@ -559,14 +700,32 @@ function Assignments() {
             </div>
 
             <div className="grid gap-4">
-              <div>
-                <p className="text-xs uppercase text-muted">বিষয় দায়িত্বশীল (২টি)</p>
-                <p className="mt-1 text-sm text-ink">দুটি বিষয়ের জন্য প্রধান দায়িত্বশীল দিন।</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase text-muted">বিষয় দায়িত্বশীল</p>
+                  <p className="mt-1 text-sm text-ink">বিষয়ের জন্য দায়িত্বশীল শিক্ষক যুক্ত করুন।</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addSubjectLead}
+                  className="h-9 border border-ink bg-white px-3 text-xs font-semibold text-ink hover:bg-ink hover:text-white transition"
+                >
+                  + দায়িত্বশীল যোগ করুন
+                </button>
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 {form.subjectLeads.map((lead, index) => (
-                  <div key={`subject-lead-${index}`} className="grid gap-2 border border-line bg-white p-4">
-                    <p className="text-xs uppercase text-muted">বিষয় {index + 1}</p>
+                  <div key={`subject-lead-${index}`} className="grid gap-2 border border-line bg-white p-4 relative">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase text-muted">দায়িত্বশীল {index + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeSubjectLead(index)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        মুছে ফেলুন
+                      </button>
+                    </div>
                     <select
                       className="h-10 border border-line bg-white px-3 text-ink"
                       value={lead.subjectId}
@@ -584,7 +743,14 @@ function Assignments() {
                       placeholder="নাম"
                       list="teacher-name-options"
                       value={lead.name}
-                      onChange={(event) => updateSubjectLead(index, 'name', event.target.value)}
+                      onChange={(event) => {
+                        const val = event.target.value
+                        updateSubjectLead(index, 'name', val)
+                        handleTeacherNameChange(val, (matched) => {
+                          updateSubjectLead(index, 'title', matched.title)
+                          updateSubjectLead(index, 'photoUrl', matched.photoUrl)
+                        })
+                      }}
                     />
                     <input
                       className="h-10 border border-line bg-white px-3 text-ink"
@@ -604,14 +770,32 @@ function Assignments() {
             </div>
 
             <div className="grid gap-4">
-              <div>
-                <p className="text-xs uppercase text-muted">ক্লাস দায়িত্বশীল (২টি)</p>
-                <p className="mt-1 text-sm text-ink">শুধু দুইটি শ্রেণির জন্য অতিরিক্ত দায়িত্বশীল দিন।</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase text-muted">শ্রেণি দায়িত্বশীল</p>
+                  <p className="mt-1 text-sm text-ink">শ্রেণির জন্য দায়িত্বশীল শিক্ষক যুক্ত করুন।</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addClassLead}
+                  className="h-9 border border-ink bg-white px-3 text-xs font-semibold text-ink hover:bg-ink hover:text-white transition"
+                >
+                  + দায়িত্বশীল যোগ করুন
+                </button>
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 {form.classLeads.map((lead, index) => (
-                  <div key={`class-lead-${index}`} className="grid gap-2 border border-line bg-white p-4">
-                    <p className="text-xs uppercase text-muted">শ্রেণি {index + 1}</p>
+                  <div key={`class-lead-${index}`} className="grid gap-2 border border-line bg-white p-4 relative">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase text-muted">দায়িত্বশীল {index + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeClassLead(index)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        মুছে ফেলুন
+                      </button>
+                    </div>
                     <select
                       className="h-10 border border-line bg-white px-3 text-ink"
                       value={lead.classId}
@@ -629,7 +813,14 @@ function Assignments() {
                       placeholder="নাম"
                       list="teacher-name-options"
                       value={lead.name}
-                      onChange={(event) => updateClassLead(index, 'name', event.target.value)}
+                      onChange={(event) => {
+                        const val = event.target.value
+                        updateClassLead(index, 'name', val)
+                        handleTeacherNameChange(val, (matched) => {
+                          updateClassLead(index, 'title', matched.title)
+                          updateClassLead(index, 'photoUrl', matched.photoUrl)
+                        })
+                      }}
                     />
                     <input
                       className="h-10 border border-line bg-white px-3 text-ink"

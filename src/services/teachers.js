@@ -37,6 +37,7 @@ export async function createTeacher(yearId, payload) {
     designation: payload.designation?.trim() || '',
     phone: payload.phone?.trim() || '',
     email: payload.email?.trim() || '',
+    photoUrl: payload.photoUrl?.trim() || '',
     sortOrder: nextSortOrder,
     createdAt: serverTimestamp(),
   })
@@ -54,6 +55,7 @@ export async function updateTeacher(yearId, teacherId, payload) {
     designation: payload.designation?.trim() || '',
     phone: payload.phone?.trim() || '',
     email: payload.email?.trim() || '',
+    photoUrl: payload.photoUrl?.trim() || '',
   })
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import SectionCard from '../../components/SectionCard.jsx'
 import ResultsTable from '../../components/ResultsTable.jsx'
 import { getActiveYearId } from '../../services/activeYear.js'
@@ -9,10 +9,13 @@ import { getSystemSettings, updateSystemSettings } from '../../services/systemSe
 import { getGroupSubjectOptions } from '../../utils/groupSubjects.js'
 import { getMarkCriteria } from '../../utils/markCriteria.js'
 import { rankResults } from '../../utils/resultScoring.js'
+import { toPng } from 'html-to-image'
 
 const emptyFilters = { groupId: '', subjectId: '' }
 
 function ResultsAdmin() {
+  const tableRef = useRef(null)
+  const [institutionName, setInstitutionName] = useState('আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা')
   const [activeYearId, setActiveYearId] = useState('')
   const [groups, setGroups] = useState([])
   const [subjects, setSubjects] = useState([])
@@ -61,6 +64,7 @@ function ResultsAdmin() {
       setSubjects(subjectList)
       setPublished(Boolean(settings.resultsPublished))
       setResultsPin(settings.resultsPin || '')
+      setInstitutionName(settings.institutionName || 'আল-ঈমান আদর্শ মহিলা আলিম মাদ্রাসা')
       setStatus('ready')
     } catch (err) {
       setError(err.message || 'রেফারেন্স ডাটা আনা যায়নি।')
@@ -85,13 +89,18 @@ function ResultsAdmin() {
   }
 
   useEffect(() => {
-    loadReferenceData()
+    setTimeout(() => {
+      void loadReferenceData()
+    }, 0)
   }, [])
 
   useEffect(() => {
     if (activeYearId) {
-      void loadSummary()
+      setTimeout(() => {
+        void loadSummary()
+      }, 0)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeYearId])
 
   const loadResults = async () => {
@@ -198,6 +207,27 @@ function ResultsAdmin() {
       ...prev,
       [key]: !prev[key],
     }))
+  }
+
+  const downloadImage = () => {
+    if (!tableRef.current) return
+    toPng(tableRef.current, {
+      cacheBust: true,
+      pixelRatio: 3,
+      style: {
+        background: 'white',
+        margin: '0',
+      }
+    })
+    .then((dataUrl) => {
+      const link = document.createElement('a')
+      link.download = `ফলাফল_তালিকা_${selectedGroup?.name || 'গ্রুপ'}_${selectedSubject?.name || 'বিষয়'}.png`
+      link.href = dataUrl
+      link.click()
+    })
+    .catch((err) => {
+      console.error('Image export failed:', err)
+    })
   }
 
   return (
@@ -313,8 +343,31 @@ function ResultsAdmin() {
           <p className="text-sm text-muted">ফলাফল দেখানোর মতো তথ্য নেই।</p>
         ) : null}
         {items.length > 0 ? (
-          <div className="border border-line bg-white p-4">
-            <ResultsTable items={items} criteriaLabels={criteriaLabels} />
+          <div className="grid gap-3">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={downloadImage}
+                className="h-10 border border-ink bg-white px-4 text-xs font-semibold text-ink hover:bg-gray-50 transition"
+              >
+                📸 ছবি ডাউনলোড করুন
+              </button>
+            </div>
+            <div ref={tableRef} className="border border-line bg-white p-6">
+              <div className="mb-6 flex flex-col items-center justify-center text-center border-b border-line pb-4">
+                <h2 className="text-xl font-bold text-ink">ফলাফল তালিকা</h2>
+                <p className="mt-1 text-sm text-muted">
+                  ইসলামিক সংস্কৃতি প্রতিযোগিতা - {activeYearId || 'তথ্যাদি'}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-ink">
+                  {institutionName}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  গ্রুপ : {selectedGroup?.name || 'গ্রুপ'}, বিষয় : {selectedSubject?.name || 'বিষয়'}
+                </p>
+              </div>
+              <ResultsTable items={items} criteriaLabels={criteriaLabels} />
+            </div>
           </div>
         ) : null}
       </SectionCard>

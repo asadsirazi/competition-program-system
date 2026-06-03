@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import html2pdf from 'html2pdf.js'
+import { toPng } from 'html-to-image'
 import SectionCard from '../../components/SectionCard.jsx'
 import { getActiveYearId } from '../../services/activeYear.js'
 import { getClasses } from '../../services/classes.js'
@@ -214,6 +215,34 @@ function Marksheets() {
       .save()
   }
 
+  const handleDownloadImage = async () => {
+    if (!printRef.current) {
+      return
+    }
+
+    const safeName = [
+      institutionName,
+      groupMap[filters.groupId] || 'group',
+      subjectMap[filters.subjectId] || 'subject',
+    ]
+      .join('-')
+      .replace(/\s+/g, '-')
+
+    try {
+      const dataUrl = await toPng(printRef.current, {
+        quality: 1.0,
+        pixelRatio: 3,
+        backgroundColor: '#ffffff',
+      })
+      const link = document.createElement('a')
+      link.download = `${safeName}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err) {
+      setError(err.message || 'ছবি ডাউনলোড করা যায়নি।')
+    }
+  }
+
   const showMetadata = filters.groupId && filters.subjectId
 
   const criteriaValue = criteriaText || defaultCriteriaText
@@ -297,9 +326,9 @@ function Marksheets() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {items.map((item, index) => (
               <tr key={item.id} className="border border-line">
-                <td className="border border-line px-2 py-2">{item.serialNumber ?? '-'}</td>
+                <td className="border border-line px-2 py-2">{toBengaliDigits(index + 1)}</td>
                 <td className="border border-line px-2 py-2">{item.studentName}</td>
                 <td className="border border-line px-2 py-2">
                   {abbreviateClassName(item.className || '')}
@@ -386,7 +415,15 @@ function Marksheets() {
             onClick={handleDownload}
             disabled={!items.length}
           >
-            ডাউনলোড
+            পিডিএফ ডাউনলোড
+          </button>
+          <button
+            type="button"
+            className="h-10 border border-ink bg-white px-4 text-xs font-semibold text-ink"
+            onClick={handleDownloadImage}
+            disabled={!items.length}
+          >
+            ছবি ডাউনলোড
           </button>
         </div>
         {error ? (

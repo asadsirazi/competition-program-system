@@ -18,6 +18,7 @@ function Subjects() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState('')
   const [editingForm, setEditingForm] = useState(emptyForm)
+  const [formOpen, setFormOpen] = useState(false)
 
   const loadSubjects = async () => {
     setStatus('loading')
@@ -98,26 +99,37 @@ function Subjects() {
         <div className="mb-4 text-xs text-muted">
           সক্রিয় বছর: {activeYearId || 'নির্ধারিত নয়'}
         </div>
-        <form className="grid gap-3" onSubmit={handleCreate}>
-          <label className="grid gap-2 text-sm text-muted">
-            বিষয়ের নাম
-            <input
-              className="h-11 border border-line bg-white px-3 text-ink"
-              value={form.name}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, name: event.target.value }))
-              }
-              placeholder="হামদ ও নাত"
-            />
-          </label>
-          <button
-            type="submit"
-            className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
-            disabled={!activeYearId}
-          >
-            যোগ করুন
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={() => setFormOpen((prev) => !prev)}
+          className="mb-4 flex items-center justify-between w-full border border-line bg-[var(--surface-alt)] px-4 py-3 text-sm font-semibold text-ink hover:opacity-80 transition"
+        >
+          <span>{formOpen ? '✕ ফর্মটি বন্ধ করুন' : '+ নতুন বিষয় যুক্ত করুন'}</span>
+          <span>{formOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {formOpen ? (
+          <form className="grid gap-3 animate-fadeIn mb-4" onSubmit={handleCreate}>
+            <label className="grid gap-2 text-sm text-muted">
+              বিষয়ের নাম
+              <input
+                className="h-11 border border-line bg-white px-3 text-ink"
+                value={form.name}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="হামদ ও নাত"
+              />
+            </label>
+            <button
+              type="submit"
+              className="h-11 border border-ink bg-ink px-4 text-sm font-semibold text-white"
+              disabled={!activeYearId}
+            >
+              যোগ করুন
+            </button>
+          </form>
+        ) : null}
         {error ? (
           <p className="mt-3 border border-line bg-white px-3 py-2 text-xs text-muted">
             {error}

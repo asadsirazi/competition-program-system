@@ -23,7 +23,7 @@ function ResultsTable({ items, criteriaLabels = ['বিচার ১', 'বি�
           </tr>
         </thead>
         <tbody>
-          {ranked.map((item) => {
+          {ranked.map((item, index) => {
             const meritTone = item.merit === 1
               ? 'bg-emerald-50'
               : item.merit === 2
@@ -33,7 +33,7 @@ function ResultsTable({ items, criteriaLabels = ['বিচার ১', 'বি�
                   : ''
             return (
             <tr key={item.id} className={`border border-line ${meritTone}`}>
-              <td className="border border-line px-3 py-2 text-center">{item.serialNumber ?? '-'}</td>
+              <td className="border border-line px-3 py-2 text-center">{index + 1}</td>
               <td className="border border-line px-3 py-2">{item.studentName}</td>
               <td className="border border-line px-3 py-2">{abbreviateClassName(item.className || '')}</td>
               <td className="border border-line px-3 py-2 text-center">{item.judge1 ?? '-'}</td>

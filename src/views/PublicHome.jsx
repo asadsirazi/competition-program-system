@@ -8,8 +8,6 @@ import { getClasses } from '../services/classes.js'
 import { getSystemSettings } from '../services/systemSettings.js'
 import { getRegistrations } from '../services/registrations.js'
 
-const emptyPerson = { name: '', title: '', photoUrl: '' }
-
 function normalizePerson(person = {}) {
   return {
     name: person.name || '',
@@ -26,7 +24,78 @@ function stripHtml(value = '') {
 }
 
 function hasPersonData(person = {}) {
-  return Boolean(person.name || person.title || person.photoUrl)
+  return Boolean(person.name || person.title || person.title2 || person.photoUrl)
+}
+
+function normalizeCommittee(committee = []) {
+  if (!Array.isArray(committee)) {
+    return []
+  }
+  return committee.map((item) => ({
+    name: item.name || '',
+    title: item.title || '',
+    title2: item.title2 || '',
+    photoUrl: item.photoUrl || '',
+  }))
+}
+
+function normalizeSubjectLeads(subjectLeads = []) {
+  if (!Array.isArray(subjectLeads)) {
+    return []
+  }
+  return subjectLeads.map((item) => ({
+    subjectId: item?.subjectId || '',
+    ...normalizePerson(item),
+  }))
+}
+
+function normalizeClassLeads(classLeads = []) {
+  if (!Array.isArray(classLeads)) {
+    return []
+  }
+  return classLeads.map((item) => ({
+    classId: item?.classId || '',
+    ...normalizePerson(item),
+  }))
+}
+
+function normalizeGroupLeads(groupLeads = []) {
+  if (!Array.isArray(groupLeads)) {
+    return []
+  }
+  return groupLeads.map((item) => {
+    let lead = { name: '', title: '', photoUrl: '' }
+    let assistants = []
+
+    // Backward compatibility check for old format flat fields
+    if (item.leadName || item.leadTitle || item.leadPhotoUrl) {
+      lead = {
+        name: item.leadName || '',
+        title: item.leadTitle || '',
+        photoUrl: item.leadPhotoUrl || '',
+      }
+    } else if (item.lead) {
+      lead = normalizePerson(item.lead)
+    }
+
+    if (Array.isArray(item.assistants)) {
+      assistants = item.assistants.map(normalizePerson)
+    } else if (item.assistantName || item.assistantTitle || item.assistantPhotoUrl) {
+      assistants = [
+        {
+          name: item.assistantName || '',
+          title: item.assistantTitle || '',
+          photoUrl: item.assistantPhotoUrl || '',
+        },
+      ]
+    }
+
+    return {
+      groupId: item.groupId,
+      lead,
+      assistants,
+    }
+  })
 }
 
 function PersonCard({ person, label }) {
@@ -50,6 +119,7 @@ function PersonCard({ person, label }) {
         {label ? <p className="text-xs uppercase text-muted">{label}</p> : null}
         <p className="text-sm font-semibold text-ink">{person.name || 'নাম নেই'}</p>
         <p className="text-xs text-muted">{person.title || 'পদবী নেই'}</p>
+        {person.title2 ? <p className="text-xs text-muted mt-0.5">{person.title2}</p> : null}
       </div>
     </div>
   )
@@ -121,38 +191,15 @@ function PublicHome() {
 
   const noticeHtml = assignments?.noticeHtml || assignments?.notice || ''
   const noticeText = stripHtml(noticeHtml)
-  const committee = (assignments?.committee || []).map((member) => normalizePerson(member))
-  const leadership = assignments?.leadership || {}
-  const groupLeads = assignments?.groupLeads || []
-  const subjectLeads = assignments?.subjectLeads || []
-  const classLeads = assignments?.classLeads || []
+  const committee = normalizeCommittee(assignments?.committee)
+  const groupLeads = normalizeGroupLeads(assignments?.groupLeads)
+  const subjectLeads = normalizeSubjectLeads(assignments?.subjectLeads)
+  const classLeads = normalizeClassLeads(assignments?.classLeads)
 
   const committeeFilled = committee.filter((member) => hasPersonData(member))
-  const leadershipEntries = [
-    { key: 'founder', label: 'প্রতিষ্ঠাতা ও পৃষ্ঠপোষক' },
-    { key: 'principal', label: 'অধ্যক্ষ' },
-    { key: 'educationDirector', label: 'শিক্ষা পরিচালক' },
-    { key: 'culturalLead', label: 'সাংস্কৃতিক ফোরামের প্রধান' },
-    { key: 'culturalAssistant', label: 'সাংস্কৃতিক ফোরামের সহকারী' },
-  ]
-    .map((role) => ({
-      ...role,
-      person: normalizePerson(leadership[role.key] || emptyPerson),
-    }))
-    .filter((role) => hasPersonData(role.person))
 
   const groupLeadsFilled = groupLeads.filter((lead) => {
-    const leadPerson = normalizePerson({
-      name: lead.leadName,
-      title: lead.leadTitle,
-      photoUrl: lead.leadPhotoUrl,
-    })
-    const assistantPerson = normalizePerson({
-      name: lead.assistantName,
-      title: lead.assistantTitle,
-      photoUrl: lead.assistantPhotoUrl,
-    })
-    return hasPersonData(leadPerson) || hasPersonData(assistantPerson)
+    return hasPersonData(lead.lead) || lead.assistants.some(hasPersonData)
   })
 
   const subjectLeadsFilled = subjectLeads.filter(
@@ -161,6 +208,7 @@ function PublicHome() {
   const classLeadsFilled = classLeads.filter(
     (lead) => lead.classId && hasPersonData(lead),
   )
+
 
   const registrationsByGroup = useMemo(() => {
     const grouped = {}
@@ -360,27 +408,13 @@ function PublicHome() {
         </SectionCard>
 
         {committeeFilled.length ? (
-          <SectionCard title="প্রতিযোগিতা পরিচালনা পর্ষদ" subtitle="পাঁচ সদস্যের তালিকা">
+          <SectionCard title="প্রতিযোগিতা পরিচালনা পর্ষদ" subtitle="সদস্য তালিকা">
             <div className="grid gap-3 lg:grid-cols-2">
               {committeeFilled.map((member, index) => (
                 <PersonCard
                   key={`committee-${index}`}
                   person={member}
                   label={`সদস্য ${index + 1}`}
-                />
-              ))}
-            </div>
-          </SectionCard>
-        ) : null}
-
-        {leadershipEntries.length ? (
-          <SectionCard title="প্রতিষ্ঠান ও সাংস্কৃতিক ফোরাম" subtitle="মূল নেতৃত্ব">
-            <div className="grid gap-3 lg:grid-cols-2">
-              {leadershipEntries.map((role) => (
-                <PersonCard
-                  key={role.key}
-                  person={role.person}
-                  label={role.label}
                 />
               ))}
             </div>
@@ -396,22 +430,21 @@ function PublicHome() {
                     {groupMap[lead.groupId] || 'গ্রুপ'}
                   </p>
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <PersonCard
-                      person={normalizePerson({
-                        name: lead.leadName,
-                        title: lead.leadTitle,
-                        photoUrl: lead.leadPhotoUrl,
-                      })}
-                      label="প্রধান দায়িত্বশীল"
-                    />
-                    <PersonCard
-                      person={normalizePerson({
-                        name: lead.assistantName,
-                        title: lead.assistantTitle,
-                        photoUrl: lead.assistantPhotoUrl,
-                      })}
-                      label="সহকারী দায়িত্বশীল"
-                    />
+                    {hasPersonData(lead.lead) ? (
+                      <PersonCard
+                        person={lead.lead}
+                        label="প্রধান দায়িত্বশীল"
+                      />
+                    ) : null}
+                    {lead.assistants.map((assistant, idx) => (
+                      hasPersonData(assistant) ? (
+                        <PersonCard
+                          key={`assistant-${idx}`}
+                          person={assistant}
+                          label={`সহকারী দায়িত্বশীল ${lead.assistants.length > 1 ? idx + 1 : ''}`}
+                        />
+                      ) : null
+                    ))}
                   </div>
                 </div>
               ))}
@@ -420,14 +453,14 @@ function PublicHome() {
         ) : null}
 
         {subjectLeadsFilled.length ? (
-          <SectionCard title="বিষয় দায়িত্বশীল" subtitle="নির্দিষ্ট দুইটি বিষয়ে">
+          <SectionCard title="বিষয় দায়িত্বশীল" subtitle="দায়িত্বপ্রাপ্ত শিক্ষক তালিকা">
             <div className="grid gap-3 lg:grid-cols-2">
               {subjectLeadsFilled.map((lead, index) => (
                 <div key={`subject-lead-${index}`} className="border border-line px-4 py-4">
                   <p className="text-xs uppercase text-muted">
                     {subjectMap[lead.subjectId] || 'বিষয় নির্ধারিত নয়'}
                   </p>
-                  <PersonCard person={normalizePerson(lead)} />
+                  <PersonCard person={lead} />
                 </div>
               ))}
             </div>
@@ -435,14 +468,14 @@ function PublicHome() {
         ) : null}
 
         {classLeadsFilled.length ? (
-          <SectionCard title="ক্লাস দায়িত্বশীল" subtitle="দুটি শ্রেণির অতিরিক্ত দায়িত্ব">
+          <SectionCard title="ক্লাস দায়িত্বশীল" subtitle="শ্রেণি দায়িত্বশীল শিক্ষক তালিকা">
             <div className="grid gap-3 lg:grid-cols-2">
               {classLeadsFilled.map((lead, index) => (
                 <div key={`class-lead-${index}`} className="border border-line px-4 py-4">
                   <p className="text-xs uppercase text-muted">
                     {classMap[lead.classId] || 'শ্রেণি নির্ধারিত নয়'}
                   </p>
-                  <PersonCard person={normalizePerson(lead)} />
+                  <PersonCard person={lead} />
                 </div>
               ))}
             </div>
