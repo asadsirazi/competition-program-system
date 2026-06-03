@@ -17,3 +17,5 @@ If you are developing a production application, we recommend using TypeScript wi
 ## Environment
 
 Copy `.env.example` to `.env` and fill in Firebase values.
+
+
