@@ -500,6 +500,7 @@ function Assignments() {
                 contentEditable
                 suppressContentEditableWarning
                 className="min-h-[180px] border border-line bg-white px-3 py-2 text-ink"
+                style={{ fontFamily: 'SulaimanLipi, sans-serif' }}
                 onFocus={() => setEditorFocused(true)}
                 onBlur={(event) => {
                   setEditorFocused(false)

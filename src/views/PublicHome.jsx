@@ -274,6 +274,7 @@ function PublicHome() {
           <SectionCard title="সাংস্কৃতিক প্রতিযোগিতার বিজ্ঞপ্তি" subtitle="সর্বশেষ নির্দেশনা">
             <div
               className="text-sm text-ink prose max-w-none"
+              style={{ fontFamily: 'SulaimanLipi, sans-serif' }}
               dangerouslySetInnerHTML={{ __html: noticeHtml }}
             />
           </SectionCard>
