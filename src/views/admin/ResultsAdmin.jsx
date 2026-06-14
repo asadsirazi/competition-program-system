@@ -10,6 +10,7 @@ import { getGroupSubjectOptions } from '../../utils/groupSubjects.js'
 import { getMarkCriteria } from '../../utils/markCriteria.js'
 import { rankResults } from '../../utils/resultScoring.js'
 import { toPng } from 'html-to-image'
+import { downloadDetailedPdf, downloadSummaryPdf } from '../../services/pdf/pdfService.jsx'
 
 const emptyFilters = { groupId: '', subjectId: '' }
 
@@ -230,6 +231,35 @@ function ResultsAdmin() {
     })
   }
 
+  const handleDownloadDetailedPdf = async () => {
+    const safeName = [
+      institutionName,
+      selectedGroup?.name || 'group',
+      selectedSubject?.name || 'subject',
+    ]
+      .join('-')
+      .replace(/\s+/g, '-')
+    
+    await downloadDetailedPdf({
+      year: activeYearId,
+      institution: institutionName,
+      groupName: selectedGroup?.name,
+      subjectName: selectedSubject?.name,
+      items: items,
+      criteriaLabels: criteriaLabels
+    }, `ফলাফল_${safeName}.pdf`)
+  }
+
+  const handleDownloadSummaryPdf = async () => {
+    await downloadSummaryPdf({
+      year: activeYearId,
+      institution: institutionName,
+      groups: groups,
+      summaryByGroup: summaryByGroup,
+      subjectMap: subjectMap
+    }, `ফলাফল_সারাংশ_${activeYearId || 'তথ্যাদি'}.pdf`)
+  }
+
   return (
     <div className="grid gap-6">
       <SectionCard title="ফলাফল" subtitle="অ্যাডমিন ফলাফল পর্যালোচনা">
@@ -344,7 +374,14 @@ function ResultsAdmin() {
         ) : null}
         {items.length > 0 ? (
           <div className="grid gap-3">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleDownloadDetailedPdf}
+                className="h-10 border border-ink bg-white px-4 text-xs font-semibold text-ink hover:bg-gray-50 transition"
+              >
+                পিডিএফ ডাউনলোড
+              </button>
               <button
                 type="button"
                 onClick={downloadImage}
@@ -381,6 +418,17 @@ function ResultsAdmin() {
         ) : null}
         {summaryStatus === 'ready' ? (
           <div className="grid gap-4">
+            {groups.length > 0 ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleDownloadSummaryPdf}
+                  className="h-10 border border-ink bg-white px-4 text-xs font-semibold text-ink hover:bg-gray-50 transition"
+                >
+                  সারাংশ পিডিএফ ডাউনলোড
+                </button>
+              </div>
+            ) : null}
             {groups.length === 0 ? (
               <p className="text-sm text-muted">গ্রুপ পাওয়া যায়নি।</p>
             ) : (

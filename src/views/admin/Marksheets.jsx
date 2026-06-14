@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import html2pdf from 'html2pdf.js'
+import { downloadMarksheetPdf } from '../../services/pdf/pdfService.jsx'
 import { toPng } from 'html-to-image'
 import SectionCard from '../../components/SectionCard.jsx'
 import { getActiveYearId } from '../../services/activeYear.js'
@@ -198,21 +198,14 @@ function Marksheets() {
       .join('-')
       .replace(/\s+/g, '-')
 
-    await html2pdf()
-      .set({
-        margin: 0,
-        filename: `${safeName}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: {
-          unit: 'in',
-          format: [pageWidthIn, pageHeightIn],
-          orientation: 'landscape',
-        },
-        pagebreak: { mode: ['avoid-all'] },
-      })
-      .from(printRef.current)
-      .save()
+    await downloadMarksheetPdf({
+      year: activeYearId,
+      institution: institutionName,
+      groupName: groupMap[filters.groupId] || 'নির্বাচন করুন',
+      subjectName: subjectMap[filters.subjectId] || 'নির্বাচন করুন',
+      criteriaText: criteriaText || defaultCriteriaText,
+      items: items
+    }, `${safeName}.pdf`)
   }
 
   const handleDownloadImage = async () => {

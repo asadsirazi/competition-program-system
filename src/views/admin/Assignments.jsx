@@ -503,9 +503,10 @@ function Assignments() {
                 onFocus={() => setEditorFocused(true)}
                 onBlur={(event) => {
                   setEditorFocused(false)
+                  const newHtml = event.currentTarget.innerHTML
                   setForm((prev) => ({
                     ...prev,
-                    noticeHtml: event.currentTarget.innerHTML,
+                    noticeHtml: newHtml,
                   }))
                 }}
                 onPaste={(event) => {
