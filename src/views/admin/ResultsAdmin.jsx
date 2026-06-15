@@ -55,11 +55,19 @@ function ResultsAdmin() {
     setError('')
     try {
       const yearId = await getActiveYearId()
-      const [groupList, subjectList, settings] = await Promise.all([
+      const [groupList, rawSubjectList, settings] = await Promise.all([
         getGroups(yearId),
         getSubjects(yearId),
         getSystemSettings(),
       ])
+      
+      const subjectList = [...rawSubjectList].sort((a, b) => {
+        const orderA = Number(a.sortOrder ?? 0)
+        const orderB = Number(b.sortOrder ?? 0)
+        if (orderA !== orderB) return orderA - orderB
+        return String(a.name || '').localeCompare(String(b.name || ''), 'bn')
+      })
+
       setActiveYearId(yearId)
       setGroups(groupList)
       setSubjects(subjectList)
@@ -175,20 +183,24 @@ function ResultsAdmin() {
     )
 
   const subjectNamesForGroup = (group) => {
-    const subjectList = (group?.subjects || []).map((subject) => ({
+    let subjectList = (group?.subjects || []).map((subject) => ({
       id: subject.id,
       name: subject.name,
     }))
 
-    if (subjectList.length) {
-      return subjectList
+    if (!subjectList.length) {
+      const groupMap = summaryByGroup[group.id] || {}
+      subjectList = Object.keys(groupMap).map((subjectId) => ({
+        id: subjectId,
+        name: subjectMap[subjectId] || 'বিষয়',
+      }))
     }
-
-    const groupMap = summaryByGroup[group.id] || {}
-    return Object.keys(groupMap).map((subjectId) => ({
-      id: subjectId,
-      name: subjectMap[subjectId] || 'বিষয়',
-    }))
+    
+    return subjectList.sort((a, b) => {
+      const idxA = subjects.findIndex((s) => s.id === a.id)
+      const idxB = subjects.findIndex((s) => s.id === b.id)
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
+    })
   }
 
   const getMeritGroups = (list) => {
@@ -256,7 +268,8 @@ function ResultsAdmin() {
       institution: institutionName,
       groups: groups,
       summaryByGroup: summaryByGroup,
-      subjectMap: subjectMap
+      subjectMap: subjectMap,
+      subjects: subjects
     }, `ফলাফল_সারাংশ_${activeYearId || 'তথ্যাদি'}.pdf`)
   }
 

@@ -1,6 +1,23 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 import { SharedHeader } from './SharedHeader.jsx'
 import { rankResults } from '../../../utils/resultScoring.js'
+import { abbreviateClassName } from '../../../utils/classDisplay.js'
+
+const digitMap = {
+  0: '০', 1: '১', 2: '২', 3: '৩', 4: '৪',
+  5: '৫', 6: '৬', 7: '৭', 8: '৮', 9: '৯',
+}
+
+function toBengaliDigits(value) {
+  return String(value).replace(/[0-9]/g, (digit) => digitMap[digit] || digit)
+}
+
+const widths = {
+  sl: '12%',
+  name: '48%',
+  class: '20%',
+  merit: '20%',
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -47,6 +64,15 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'row',
   },
+  cellHeader: {
+    padding: 4,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#000000',
+    borderStyle: 'solid',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   cellText: {
     padding: 4,
     borderRightWidth: 1,
@@ -65,12 +91,23 @@ const isMarksComplete = (item) =>
     (value) => value !== '' && value !== null && value !== undefined
   )
 
-export function SummaryPdf({ year, institution, groups, summaryByGroup, subjectMap }) {
+export function SummaryPdf({ year, institution, groups, summaryByGroup, subjectMap, subjects }) {
   const getSubjectList = (group) => {
-    const list = (group?.subjects || []).map(s => ({ id: s.id, name: s.name }))
-    if (list.length) return list
-    const groupMap = summaryByGroup[group.id] || {}
-    return Object.keys(groupMap).map(sid => ({ id: sid, name: subjectMap[sid] || 'বিষয়' }))
+    let list = (group?.subjects || []).map(s => ({ id: s.id, name: s.name }))
+    if (!list.length) {
+      const groupMap = summaryByGroup[group.id] || {}
+      list = Object.keys(groupMap).map(sid => ({ id: sid, name: subjectMap[sid] || 'বিষয়' }))
+    }
+    
+    if (subjects && subjects.length > 0) {
+      list.sort((a, b) => {
+        const idxA = subjects.findIndex(s => s.id === a.id)
+        const idxB = subjects.findIndex(s => s.id === b.id)
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
+      })
+    }
+    
+    return list
   }
 
   const getTop3 = (list) => {
@@ -128,7 +165,13 @@ export function SummaryPdf({ year, institution, groups, summaryByGroup, subjectM
         </View>
         
         <View style={styles.table}>
-          {card.top.map((student) => {
+          <View style={styles.studentRow}>
+            <View style={[styles.cellHeader, { width: widths.sl, textAlign: 'center' }]}><Text>ক্রঃ</Text></View>
+            <View style={[styles.cellHeader, { width: widths.name }]}><Text>প্রতিযোগীর নাম</Text></View>
+            <View style={[styles.cellHeader, { width: widths.class }]}><Text>শ্রেণী</Text></View>
+            <View style={[styles.cellHeader, { width: widths.merit, textAlign: 'center' }]}><Text>মেধাক্রম</Text></View>
+          </View>
+          {card.top.map((student, index) => {
             let rowStyle = {}
             if (student.merit === 1) rowStyle = styles.merit1
             else if (student.merit === 2) rowStyle = styles.merit2
@@ -136,8 +179,10 @@ export function SummaryPdf({ year, institution, groups, summaryByGroup, subjectM
             
             return (
               <View key={student.id} style={[styles.studentRow, rowStyle]}>
-                <View style={[styles.cellText, { flex: 1 }]}><Text>{student.studentName || 'নাম নেই'}</Text></View>
-                <View style={[styles.cellText, { width: 50, textAlign: 'center' }]}><Text>মেধা: {student.merit}</Text></View>
+                <View style={[styles.cellText, { width: widths.sl, textAlign: 'center' }]}><Text>{toBengaliDigits(index + 1)}</Text></View>
+                <View style={[styles.cellText, { width: widths.name }]}><Text>{student.studentName || 'নাম নেই'}</Text></View>
+                <View style={[styles.cellText, { width: widths.class }]}><Text>{abbreviateClassName(student.className || '')}</Text></View>
+                <View style={[styles.cellText, { width: widths.merit, textAlign: 'center' }]}><Text>{toBengaliDigits(student.merit)}</Text></View>
               </View>
             )
           })}

@@ -157,7 +157,7 @@ function PublicHome() {
       setError('')
       try {
         const yearId = await getActiveYearId()
-        const [groupList, subjectList, classList, settings, registrationList] = await Promise.all([
+        const [groupList, rawSubjectList, classList, settings, registrationList] = await Promise.all([
           getGroups(yearId),
           getSubjects(yearId),
           getClasses(yearId),
@@ -167,6 +167,14 @@ function PublicHome() {
         if (!active) {
           return
         }
+        
+        const subjectList = [...rawSubjectList].sort((a, b) => {
+          const orderA = Number(a.sortOrder ?? 0)
+          const orderB = Number(b.sortOrder ?? 0)
+          if (orderA !== orderB) return orderA - orderB
+          return String(a.name || '').localeCompare(String(b.name || ''), 'bn')
+        })
+
         const saved = settings?.assignmentsByYear?.[yearId] || {}
         setActiveYearId(yearId)
         setGroups(groupList)
@@ -335,9 +343,9 @@ function PublicHome() {
                 const subjectsMap = registrationsByGroup[group.id] || {}
                 const subjectIds = Object.keys(subjectsMap)
                 const sortedSubjectIds = subjectIds.sort((a, b) => {
-                  const nameA = subjectMap[a] || ''
-                  const nameB = subjectMap[b] || ''
-                  return nameA.localeCompare(nameB, 'bn')
+                  const idxA = subjects.findIndex((s) => s.id === a)
+                  const idxB = subjects.findIndex((s) => s.id === b)
+                  return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
                 })
 
                 return (
