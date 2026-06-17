@@ -51,6 +51,8 @@ export function abbreviateClassName(className = '') {
     .trim()
 
   const shortLabels = [
+    { label: 'আঃ১ম', patterns: [/(আলিম|alim).*(১ম|প্রথম|1|first)/i] },
+    { label: 'আঃ২য়', patterns: [/(আলিম|alim).*(২য়|২য়|দ্বিতীয়|2|second)/i] },
     { label: 'শিশু', patterns: [/শিশু/i, /nursery/i, /kg1/i, /kg/i] },
     { label: '১২শ', patterns: [/দ্বাদশ/i, /12/i, /১২/i, /twelve/i] },
     { label: '১১শ', patterns: [/একাদশ/i, /11/i, /১১/i, /eleven/i] },
