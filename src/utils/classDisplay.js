@@ -51,8 +51,8 @@ export function abbreviateClassName(className = '') {
     .trim()
 
   const shortLabels = [
-    { label: 'আঃ১ম', patterns: [/(আলিম|alim).*(১ম|প্রথম|1|first)/i] },
-    { label: 'আঃ২য়', patterns: [/(আলিম|alim).*(২য়|২য়|দ্বিতীয়|2|second)/i] },
+    { label: 'আ:১ম', patterns: [/(?=.*(আলিম|alim))(?=.*(১ম|প্রথম|1|first))/i] },
+    { label: 'আ:২য়', patterns: [/(?=.*(আলিম|alim))(?=.*(২য়|২য়|দ্বিতীয়|2|second))/i] },
     { label: 'শিশু', patterns: [/শিশু/i, /nursery/i, /kg1/i, /kg/i] },
     { label: '১২শ', patterns: [/দ্বাদশ/i, /12/i, /১২/i, /twelve/i] },
     { label: '১১শ', patterns: [/একাদশ/i, /11/i, /১১/i, /eleven/i] },
@@ -68,7 +68,7 @@ export function abbreviateClassName(className = '') {
     { label: '১ম', patterns: [/প্রথম/i, /1/i, /১/i, /first/i] },
   ]
 
-  const matchedShortLabel = shortLabels.find(({ patterns }) => matchesAny(stripped, patterns))?.label
+  const matchedShortLabel = shortLabels.find(({ patterns }) => matchesAny(normalized, patterns))?.label
   if (matchedShortLabel) {
     return isBoyBranch ? `${matchedShortLabel}-বা` : matchedShortLabel
   }
